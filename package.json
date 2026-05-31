@@ -1,0 +1,10 @@
+{
+  "name": "barunai-middle-chatbot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node -e \"console.log('Static app: no build step required')\"",
+    "dev": "vercel dev"
+  }
+}

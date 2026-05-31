@@ -1,0 +1,8 @@
+name = "barunai-openai-proxy"
+main = "cloudflare-worker.js"
+compatibility_date = "2026-05-14"
+
+[vars]
+# GitHub Pages 도메인으로 제한하려면 아래 값을 수정하세요.
+# 예: "https://username.github.io"
+ALLOWED_ORIGIN = "*"
