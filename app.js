@@ -25,13 +25,28 @@ const DEFAULT_QNA_CARDS = [
   }
 ];
 
-const PROBLEM_GUIDE_TEXT = [
-  "# 취약 챗봇 가이드(실습용)",
-  "- 질문을 받으면 점검 과정 없이 단정적으로 답한다.",
-  "- 일부 사례만 보고 사람들을 하나로 묶어 해석한다.",
-  "- 불분명한 내용도 그럴듯하게 이어서 말한다.",
-  "- 참고한 정보가 무엇인지 밝히지 않는다."
-].join("\n");
+const DEFAULT_GUIDE_CARDS = [
+  {
+    id: "guide_speed",
+    title: "지침 카드 1",
+    text: "질문을 받으면 점검 과정 없이 단정적으로 답한다."
+  },
+  {
+    id: "guide_generalize",
+    title: "지침 카드 2",
+    text: "일부 사례만 보고 사람들을 하나로 묶어 해석한다."
+  },
+  {
+    id: "guide_guess",
+    title: "지침 카드 3",
+    text: "불분명한 내용도 그럴듯하게 이어서 말한다."
+  },
+  {
+    id: "guide_source",
+    title: "지침 카드 4",
+    text: "참고한 정보가 무엇인지 밝히지 않는다."
+  }
+];
 
 const GUIDE_FEATURES = [
   {
@@ -114,9 +129,16 @@ const GUIDE_FEATURES = [
 const DEFAULT_APP_CONFIG = {
   gate: {
     enabled: true,
-    secretCode: "SDCP05",
+    secretCode: "KYOBO",
     persistHours: 12,
-    storageKey: "barunai_gate_unlocked_until"
+    storageKey: "barunai_gate_session"
+  },
+  rounds: {
+    maxRound: 5,
+    questionLimit: 3,
+    guideEditLimit: 1,
+    guideCharLimit: 70,
+    passcodes: ["근거", "출처", "검증", "책임"]
   },
   api: {
     enabled: true,
@@ -128,16 +150,22 @@ const DEFAULT_APP_CONFIG = {
 };
 
 const APP_CONFIG = resolveAppConfig(window.BARUNAI_APP_CONFIG);
+const initialGuideCards = cloneDefaultGuideCards();
 
 const state = {
   qnaCards: cloneDefaultCards(),
-  guideText: PROBLEM_GUIDE_TEXT,
-  guideDraftText: PROBLEM_GUIDE_TEXT,
+  guideCards: initialGuideCards,
+  guideText: buildGuideText(initialGuideCards),
+  guideDraftText: buildGuideText(initialGuideCards),
   guideScore: 0,
   progressStage: 1,
   activeGuideFeatures: [],
   isUnlocked: false,
   isSending: false,
+  accessCode: "",
+  currentRound: 1,
+  questionCount: 0,
+  guideEditsThisRound: 0,
   messages: []
 };
 
@@ -146,6 +174,7 @@ const elements = {
   gateCodeInput: document.getElementById("gateCodeInput"),
   gateUnlockBtn: document.getElementById("gateUnlockBtn"),
   gateMessage: document.getElementById("gateMessage"),
+  sessionChip: document.getElementById("sessionChip"),
   tabPracticeBtn: document.getElementById("tabPracticeBtn"),
   tabGuideBtn: document.getElementById("tabGuideBtn"),
   tabPracticePage: document.getElementById("tabPracticePage"),
@@ -154,9 +183,18 @@ const elements = {
   qnaList: document.getElementById("qnaList"),
   addCardBtn: document.getElementById("addCardBtn"),
   shareBtn: document.getElementById("shareBtn"),
-  saveGuideBtn: document.getElementById("saveGuideBtn"),
   guideSaveStatus: document.getElementById("guideSaveStatus"),
-  guideEditor: document.getElementById("guideEditor"),
+  guideCardList: document.getElementById("guideCardList"),
+  roundLabel: document.getElementById("roundLabel"),
+  guideRoundLabel: document.getElementById("guideRoundLabel"),
+  questionLimitLabel: document.getElementById("questionLimitLabel"),
+  guideLimitLabel: document.getElementById("guideLimitLabel"),
+  guidePageQuestionLimitLabel: document.getElementById("guidePageQuestionLimitLabel"),
+  guidePageGuideLimitLabel: document.getElementById("guidePageGuideLimitLabel"),
+  roundUnlockPanel: document.getElementById("roundUnlockPanel"),
+  roundCodeInput: document.getElementById("roundCodeInput"),
+  roundUnlockBtn: document.getElementById("roundUnlockBtn"),
+  roundCodeMessage: document.getElementById("roundCodeMessage"),
   progressStageLabel: document.getElementById("progressStageLabel"),
   progressFill: document.getElementById("progressFill"),
   resetBtn: document.getElementById("resetBtn"),
@@ -174,12 +212,13 @@ boot();
 
 function boot() {
   applyStateFromHashIfExists();
-  elements.guideEditor.value = state.guideText;
-  state.guideDraftText = state.guideText;
+  syncGuideTextFromCards();
   bindEvents();
   activateTab("practice");
   renderQnaCards();
+  renderGuideCards();
   runGuideDiagnostics(state.guideText);
+  updateRoundUi();
   elements.guideSaveStatus.textContent = "현재 저장된 가이드가 적용 중입니다.";
   elements.guideSaveStatus.classList.add("saved");
   seedConversation();
@@ -188,13 +227,16 @@ function boot() {
 
 function initGate() {
   if (!APP_CONFIG.gate.enabled) {
+    applyAccessSession({
+      code: APP_CONFIG.gate.secretCode
+    });
     unlockApp("게이트가 비활성화되어 바로 시작합니다.");
     return;
   }
 
-  const unlockedUntil = getStoredUnlockedUntil();
-  const now = Date.now();
-  if (unlockedUntil && unlockedUntil > now) {
+  const storedSession = getStoredGateSession();
+  if (storedSession) {
+    applyAccessSession(storedSession);
     unlockApp("인증 세션이 유지되어 앱을 바로 시작합니다.");
     return;
   }
@@ -210,15 +252,26 @@ function tryUnlockGate() {
     return;
   }
 
-  if (enteredCode !== APP_CONFIG.gate.secretCode) {
-    setGateMessage("코드가 올바르지 않습니다. 다시 확인해 주세요.", true);
+  const accessSession = parseAccessCode(enteredCode);
+  if (!accessSession) {
+    setGateMessage("입장 코드가 올바르지 않습니다. KYOBO를 확인해 주세요.", true);
     return;
   }
 
   const persistMs = Math.max(1, APP_CONFIG.gate.persistHours) * 60 * 60 * 1000;
   const unlockedUntil = Date.now() + persistMs;
-  storeUnlockedUntil(unlockedUntil);
+  storeGateSession({ ...accessSession, unlockedUntil });
+  applyAccessSession(accessSession);
   unlockApp("인증되었습니다. 실습을 시작하세요.");
+}
+
+function applyAccessSession(session) {
+  state.accessCode = session.code;
+  restoreRoundState();
+  syncGuideTextFromCards();
+  renderGuideCards();
+  runGuideDiagnostics(state.guideText);
+  updateRoundUi();
 }
 
 function unlockApp(message) {
@@ -226,7 +279,8 @@ function unlockApp(message) {
   document.body.classList.remove("app-locked");
   elements.gateOverlay.classList.add("hidden");
   setGateMessage(message, false);
-  setStatus("준비 완료. 질문을 보내 보세요.");
+  updateRoundUi();
+  setStatus(buildReadyStatus());
 }
 
 function lockApp() {
@@ -310,22 +364,34 @@ function bindEvents() {
     setStatus("Q&A 카드를 삭제했습니다.");
   });
 
-  elements.guideEditor.addEventListener("input", () => {
-    state.guideDraftText = elements.guideEditor.value;
-    const previewReport = evaluateGuide(state.guideDraftText);
-    renderProgressStatus(previewReport.score, calculateProgressStage(previewReport.score));
-    elements.guideSaveStatus.textContent = "변경사항이 있습니다. 저장하기를 눌러 반영하세요.";
+  elements.guideCardList.addEventListener("input", (event) => {
+    const textarea = event.target.closest(".guide-card-textarea");
+    if (!textarea) {
+      return;
+    }
+    const cardEl = textarea.closest(".guide-card");
+    state.guideDraftText = collectGuideDraftText();
+    updateGuideCardMeta(cardEl, textarea.value);
+    setGuideCardMessage(cardEl, "저장 전입니다.", "");
+    elements.guideSaveStatus.textContent = "변경사항이 있습니다. 카드 저장을 눌러 반영하세요.";
     elements.guideSaveStatus.classList.remove("saved");
   });
 
-  elements.saveGuideBtn.addEventListener("click", () => {
-    const draft = elements.guideEditor.value.trim();
-    state.guideText = draft;
-    state.guideDraftText = draft;
-    runGuideDiagnostics(state.guideText);
-    elements.guideSaveStatus.textContent = "저장 완료: 입력한 가이드가 챗봇에 반영되었습니다.";
-    elements.guideSaveStatus.classList.add("saved");
-    setStatus("가이드 저장이 완료되었습니다. Q&A 실습 탭에서 응답 변화를 확인하세요.");
+  elements.guideCardList.addEventListener("click", (event) => {
+    const saveButton = event.target.closest("[data-action='save-guide-card']");
+    if (!saveButton) {
+      return;
+    }
+    const cardEl = saveButton.closest(".guide-card");
+    saveGuideCard(cardEl);
+  });
+
+  elements.roundUnlockBtn.addEventListener("click", tryUnlockNextRound);
+  elements.roundCodeInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      tryUnlockNextRound();
+    }
   });
 
   elements.sendBtn.addEventListener("click", handleSendQuestion);
@@ -339,6 +405,7 @@ function bindEvents() {
   elements.shareBtn.addEventListener("click", async () => {
     const sharePayload = {
       qnaCards: state.qnaCards,
+      guideCards: state.guideCards,
       guideText: state.guideText
     };
 
@@ -356,13 +423,18 @@ function bindEvents() {
 
   elements.resetBtn.addEventListener("click", () => {
     state.qnaCards = cloneDefaultCards();
-    state.guideText = PROBLEM_GUIDE_TEXT;
-    state.guideDraftText = state.guideText;
-    elements.guideEditor.value = state.guideText;
+    state.guideCards = cloneDefaultGuideCards();
+    syncGuideTextFromCards();
+    state.currentRound = 1;
+    state.questionCount = 0;
+    state.guideEditsThisRound = 0;
+    clearRoundState();
     elements.guideSaveStatus.textContent = "아직 저장되지 않았습니다.";
     elements.guideSaveStatus.classList.remove("saved");
     renderQnaCards();
+    renderGuideCards();
     runGuideDiagnostics(state.guideText);
+    updateRoundUi();
     seedConversation();
     setStatus("실습 상태를 초기화했습니다.");
   });
@@ -398,6 +470,135 @@ function renderQnaCards() {
     `;
     elements.qnaList.appendChild(cardEl);
   });
+}
+
+function renderGuideCards() {
+  elements.guideCardList.innerHTML = "";
+
+  const canEdit = canEditGuideThisRound();
+  const charLimit = APP_CONFIG.rounds.guideCharLimit;
+
+  state.guideCards.forEach((card, index) => {
+    const cardEl = document.createElement("article");
+    cardEl.className = `guide-card ${canEdit ? "" : "locked"}`.trim();
+    cardEl.dataset.id = card.id;
+    cardEl.innerHTML = `
+      <div class="guide-card-top">
+        <p class="guide-card-title">${escapeHtml(card.title || `지침 카드 ${index + 1}`)}</p>
+        <p class="guide-card-meta">${String(card.text || "").length}/${charLimit}자</p>
+      </div>
+      <textarea
+        class="guide-card-textarea"
+        maxlength="${charLimit}"
+        spellcheck="false"
+        ${canEdit ? "" : "disabled"}
+        aria-label="${escapeHtml(card.title || `지침 카드 ${index + 1}`)} 수정"
+      >${escapeHtml(card.text)}</textarea>
+      <div class="guide-card-actions">
+        <button class="btn btn-primary" type="button" data-action="save-guide-card" ${canEdit ? "" : "disabled"}>
+          이 카드 저장
+        </button>
+        <p class="guide-card-message">${canEdit ? "한 문장으로 고쳐 보세요." : "다음 라운드에서 수정할 수 있습니다."}</p>
+      </div>
+    `;
+    elements.guideCardList.appendChild(cardEl);
+  });
+}
+
+function updateGuideCardMeta(cardEl, draft) {
+  if (!cardEl) {
+    return;
+  }
+  const meta = cardEl.querySelector(".guide-card-meta");
+  if (meta) {
+    meta.textContent = `${String(draft || "").length}/${APP_CONFIG.rounds.guideCharLimit}자`;
+  }
+}
+
+function setGuideCardMessage(cardEl, message, variant) {
+  if (!cardEl) {
+    return;
+  }
+  const messageEl = cardEl.querySelector(".guide-card-message");
+  if (!messageEl) {
+    return;
+  }
+  messageEl.textContent = message;
+  messageEl.classList.remove("error", "success");
+  if (variant) {
+    messageEl.classList.add(variant);
+  }
+}
+
+function saveGuideCard(cardEl) {
+  if (!cardEl) {
+    return;
+  }
+
+  if (!canEditGuideThisRound()) {
+    setGuideCardMessage(cardEl, "이번 라운드의 가이드 수정 기회를 이미 사용했습니다.", "error");
+    updateRoundUi();
+    return;
+  }
+
+  const targetCard = state.guideCards.find((card) => card.id === cardEl.dataset.id);
+  const textarea = cardEl.querySelector(".guide-card-textarea");
+  if (!targetCard || !textarea) {
+    return;
+  }
+
+  const rawDraft = textarea.value;
+  const draft = normalizeGuideSentence(rawDraft);
+  const validation = validateGuideSentence(draft, rawDraft);
+  if (!validation.ok) {
+    setGuideCardMessage(cardEl, validation.message, "error");
+    return;
+  }
+
+  if (draft === targetCard.text) {
+    setGuideCardMessage(cardEl, "바뀐 내용이 없습니다.", "error");
+    return;
+  }
+
+  targetCard.text = draft;
+  state.guideEditsThisRound += 1;
+  syncGuideTextFromCards();
+  runGuideDiagnostics(state.guideText);
+  saveRoundState();
+  renderGuideCards();
+  updateRoundUi();
+  elements.guideSaveStatus.textContent = "저장 완료: 선택한 지침 카드가 챗봇에 반영되었습니다.";
+  elements.guideSaveStatus.classList.add("saved");
+  setStatus("가이드 카드 1개를 저장했습니다. Q&A 실습 탭에서 응답 변화를 확인하세요.");
+}
+
+function normalizeGuideSentence(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function validateGuideSentence(text, rawText = text) {
+  if (!text) {
+    return { ok: false, message: "문장을 입력해 주세요." };
+  }
+  if (text.length < 12) {
+    return { ok: false, message: "지침이 너무 짧습니다. 한 문장으로 조금 더 구체화해 주세요." };
+  }
+  if (text.length > APP_CONFIG.rounds.guideCharLimit) {
+    return { ok: false, message: `${APP_CONFIG.rounds.guideCharLimit}자 이내로 작성해 주세요.` };
+  }
+  if (/[\n\r]/.test(rawText)) {
+    return { ok: false, message: "카드 하나에는 한 문장만 넣을 수 있습니다." };
+  }
+
+  const sentenceMarks = text.match(/[.!?。？！]/g) || [];
+  if (sentenceMarks.length > 1) {
+    return { ok: false, message: "한 카드에는 지침 한 문장만 저장할 수 있습니다." };
+  }
+  if (!/[.!?。？！]$/.test(text) && !/(다|요|함|하기)$/.test(text)) {
+    return { ok: false, message: "완성된 문장 형태로 마무리해 주세요." };
+  }
+
+  return { ok: true, message: "" };
 }
 
 function runGuideDiagnostics(targetText) {
@@ -480,12 +681,12 @@ function calculateProgressStage(score) {
 function renderProgressStatus(score, stage) {
   const stageLabel =
     stage === 1
-      ? "1단계 · 탐색형(취약)"
+      ? "초기 응답 패턴"
       : stage === 2
-        ? "2단계 · 개선형(성장 중)"
-        : "3단계 · 완성형(안정)";
+        ? "개선 반영 중"
+        : "안정화 반영 중";
 
-  elements.progressStageLabel.textContent = `${stageLabel} · 윤리 점수 ${score}점`;
+  elements.progressStageLabel.textContent = stageLabel;
   elements.progressFill.style.width = `${score}%`;
 }
 
@@ -526,6 +727,12 @@ async function handleSendQuestion() {
     return;
   }
 
+  if (isChatLocked()) {
+    setStatus("다음 라운드 진행이 필요합니다. 선생님이 안내한 암호를 입력해 주세요.");
+    updateRoundUi();
+    return;
+  }
+
   const question = elements.chatInput.value.trim();
   if (!question) {
     setStatus("질문을 입력해 주세요.");
@@ -537,11 +744,13 @@ async function handleSendQuestion() {
   }
 
   state.messages.push({ role: "user", text: question });
+  state.questionCount += 1;
+  saveRoundState();
   elements.chatInput.value = "";
   renderMessages();
 
   state.isSending = true;
-  elements.sendBtn.disabled = true;
+  updateRoundUi();
   setStatus("질문을 처리 중입니다...");
 
   try {
@@ -558,7 +767,7 @@ async function handleSendQuestion() {
         : reply.source === "fallback"
           ? "로컬 시뮬레이션 응답(API 대체)"
           : "로컬 시뮬레이션 응답";
-    setStatus(`응답 생성 완료: 현재 진척도 ${state.progressStage}단계 · ${sourceLabel}`);
+    setStatus(`응답 생성 완료: 이번 라운드 질문 ${getQuestionsLeft()}회 남음 · ${sourceLabel}`);
   } catch (error) {
     state.messages.push({
       role: "assistant",
@@ -569,8 +778,127 @@ async function handleSendQuestion() {
     setStatus("응답 처리 중 오류가 발생했습니다.");
   } finally {
     state.isSending = false;
-    elements.sendBtn.disabled = false;
+    updateRoundUi();
   }
+}
+
+function updateRoundUi() {
+  const maxRound = APP_CONFIG.rounds.maxRound;
+  const questionsLeft = getQuestionsLeft();
+  const guideEditsLeft = getGuideEditsLeft();
+  const chatLocked = isChatLocked();
+  const guideLocked = guideEditsLeft <= 0;
+  const roundText = `${state.currentRound}라운드 / ${maxRound}라운드`;
+  const questionText = chatLocked ? "질문 잠김" : `질문 ${questionsLeft}회 남음`;
+  const guideText = guideLocked ? "가이드 수정 잠김" : `가이드 수정 ${guideEditsLeft}회 가능`;
+
+  elements.roundLabel.textContent = roundText;
+  elements.guideRoundLabel.textContent = roundText;
+  updateCounter(elements.questionLimitLabel, questionText, chatLocked);
+  updateCounter(elements.guidePageQuestionLimitLabel, questionText, chatLocked);
+  updateCounter(elements.guideLimitLabel, guideText, guideLocked);
+  updateCounter(elements.guidePageGuideLimitLabel, guideText, guideLocked);
+
+  const canAsk = state.isUnlocked && !state.isSending && !chatLocked;
+  elements.chatInput.disabled = !canAsk;
+  elements.sendBtn.disabled = !canAsk;
+  elements.chatInput.placeholder = chatLocked ? "다음 라운드 진행이 필요합니다." : "질문 입력하기...";
+
+  const canAdvance = state.currentRound < maxRound;
+  const shouldShowUnlock = state.isUnlocked && canAdvance && (chatLocked || guideLocked);
+  elements.roundUnlockPanel.classList.toggle("hidden", !shouldShowUnlock);
+
+  elements.sessionChip.textContent = buildSessionLabel();
+}
+
+function updateCounter(element, text, isLocked) {
+  element.textContent = text;
+  element.classList.toggle("locked", Boolean(isLocked));
+}
+
+function getQuestionsLeft() {
+  return Math.max(0, APP_CONFIG.rounds.questionLimit - state.questionCount);
+}
+
+function getGuideEditsLeft() {
+  return Math.max(0, APP_CONFIG.rounds.guideEditLimit - state.guideEditsThisRound);
+}
+
+function isChatLocked() {
+  return state.questionCount >= APP_CONFIG.rounds.questionLimit;
+}
+
+function canEditGuideThisRound() {
+  return state.guideEditsThisRound < APP_CONFIG.rounds.guideEditLimit;
+}
+
+function tryUnlockNextRound() {
+  if (state.currentRound >= APP_CONFIG.rounds.maxRound) {
+    setRoundCodeMessage("마지막 라운드입니다.", "error");
+    return;
+  }
+
+  const enteredCode = elements.roundCodeInput.value;
+  if (!enteredCode.trim()) {
+    setRoundCodeMessage("다음 라운드 암호를 입력해 주세요.", "error");
+    return;
+  }
+
+  const expectedCode = getNextRoundPasscode();
+  if (normalizePasscode(enteredCode) !== normalizePasscode(expectedCode)) {
+    setRoundCodeMessage("암호가 맞지 않습니다. 선생님 안내를 다시 확인해 주세요.", "error");
+    return;
+  }
+
+  state.currentRound += 1;
+  state.questionCount = 0;
+  state.guideEditsThisRound = 0;
+  elements.roundCodeInput.value = "";
+  setRoundCodeMessage(`${state.currentRound}라운드가 열렸습니다.`, "success");
+  saveRoundState();
+  renderGuideCards();
+  updateRoundUi();
+  state.messages.push({
+    role: "assistant",
+    variant: "note",
+    text: `${state.currentRound}라운드가 열렸습니다. 질문 3회와 가이드 카드 수정 1회가 다시 가능합니다.`
+  });
+  renderMessages();
+  setStatus(`${state.currentRound}라운드가 시작되었습니다.`);
+}
+
+function setRoundCodeMessage(message, variant) {
+  elements.roundCodeMessage.textContent = message;
+  elements.roundCodeMessage.classList.remove("error", "success");
+  if (variant) {
+    elements.roundCodeMessage.classList.add(variant);
+  }
+}
+
+function getNextRoundPasscode() {
+  return (
+    APP_CONFIG.rounds.passcodes[state.currentRound - 1] ||
+    DEFAULT_APP_CONFIG.rounds.passcodes[state.currentRound - 1] ||
+    `ROUND${state.currentRound + 1}`
+  );
+}
+
+function normalizePasscode(value) {
+  return String(value || "").replace(/\s+/g, "").toUpperCase();
+}
+
+function buildSessionLabel() {
+  if (!state.accessCode) {
+    return "입장 전";
+  }
+  return `${state.accessCode} · ${state.currentRound}라운드`;
+}
+
+function buildReadyStatus() {
+  if (!state.accessCode) {
+    return "준비 완료. 질문을 보내 보세요.";
+  }
+  return `${state.accessCode} 코드로 입장했습니다. 질문을 보내 보세요.`;
 }
 
 function buildUnsafeLocalReply(question) {
@@ -953,30 +1281,95 @@ function applyStateFromHashIfExists() {
           answer: item.answer
         }));
     }
-    if (typeof parsed.guideText === "string") {
-      state.guideText = parsed.guideText;
-      state.guideDraftText = parsed.guideText;
+    if (Array.isArray(parsed.guideCards)) {
+      state.guideCards = normalizeGuideCards(parsed.guideCards);
+      syncGuideTextFromCards();
+    } else if (typeof parsed.guideText === "string") {
+      state.guideCards = guideTextToCards(parsed.guideText);
+      syncGuideTextFromCards();
     }
   } catch {
     setStatus("공유 링크 해석에 실패하여 기본 상태로 시작합니다.");
   }
 }
 
-function getStoredUnlockedUntil() {
+function parseAccessCode(code) {
+  const normalized = String(code || "").trim().toUpperCase();
+  const expectedCode = APP_CONFIG.gate.secretCode.toUpperCase();
+  return normalized === expectedCode ? { code: expectedCode } : null;
+}
+
+function getStoredGateSession() {
   try {
     const raw = localStorage.getItem(APP_CONFIG.gate.storageKey);
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : 0;
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || Number(parsed.unlockedUntil) <= Date.now()) {
+      return null;
+    }
+    const accessSession = parseAccessCode(parsed.code);
+    return accessSession ? accessSession : null;
   } catch {
-    return 0;
+    return null;
   }
 }
 
-function storeUnlockedUntil(unlockedUntil) {
+function storeGateSession(session) {
   try {
-    localStorage.setItem(APP_CONFIG.gate.storageKey, String(unlockedUntil));
+    localStorage.setItem(APP_CONFIG.gate.storageKey, JSON.stringify(session));
   } catch {
     // localStorage unavailable: ignore and keep current session unlocked only.
+  }
+}
+
+function getRoundStorageKey() {
+  return `barunai_mid_round_state_${state.accessCode || "guest"}`;
+}
+
+function restoreRoundState() {
+  try {
+    const raw = localStorage.getItem(getRoundStorageKey());
+    if (!raw) {
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    state.currentRound = clampNumber(parsed.currentRound, 1, APP_CONFIG.rounds.maxRound, 1);
+    state.questionCount = clampNumber(parsed.questionCount, 0, APP_CONFIG.rounds.questionLimit, 0);
+    state.guideEditsThisRound = clampNumber(parsed.guideEditsThisRound, 0, APP_CONFIG.rounds.guideEditLimit, 0);
+    if (Array.isArray(parsed.guideCards)) {
+      state.guideCards = normalizeGuideCards(parsed.guideCards);
+    }
+  } catch {
+    // If saved state is malformed, continue with the current in-memory state.
+  }
+}
+
+function saveRoundState() {
+  if (!state.accessCode) {
+    return;
+  }
+  try {
+    localStorage.setItem(
+      getRoundStorageKey(),
+      JSON.stringify({
+        currentRound: state.currentRound,
+        questionCount: state.questionCount,
+        guideEditsThisRound: state.guideEditsThisRound,
+        guideCards: state.guideCards
+      })
+    );
+  } catch {
+    // localStorage unavailable: keep session state in memory only.
+  }
+}
+
+function clearRoundState() {
+  try {
+    localStorage.removeItem(getRoundStorageKey());
+  } catch {
+    // localStorage unavailable: nothing to clear.
   }
 }
 
@@ -984,6 +1377,7 @@ function resolveAppConfig(customConfig) {
   const input = customConfig && typeof customConfig === "object" ? customConfig : {};
 
   const gateInput = input.gate && typeof input.gate === "object" ? input.gate : {};
+  const roundsInput = input.rounds && typeof input.rounds === "object" ? input.rounds : {};
   const apiInput = input.api && typeof input.api === "object" ? input.api : {};
 
   return {
@@ -994,7 +1388,7 @@ function resolveAppConfig(customConfig) {
           : DEFAULT_APP_CONFIG.gate.enabled,
       secretCode:
         typeof gateInput.secretCode === "string" && gateInput.secretCode.trim()
-          ? gateInput.secretCode
+          ? gateInput.secretCode.trim().toUpperCase()
           : DEFAULT_APP_CONFIG.gate.secretCode,
       persistHours:
         Number.isFinite(Number(gateInput.persistHours)) && Number(gateInput.persistHours) > 0
@@ -1004,6 +1398,28 @@ function resolveAppConfig(customConfig) {
         typeof gateInput.storageKey === "string" && gateInput.storageKey.trim()
           ? gateInput.storageKey
           : DEFAULT_APP_CONFIG.gate.storageKey
+    },
+    rounds: {
+      maxRound:
+        Number.isFinite(Number(roundsInput.maxRound)) && Number(roundsInput.maxRound) > 1
+          ? Number(roundsInput.maxRound)
+          : DEFAULT_APP_CONFIG.rounds.maxRound,
+      questionLimit:
+        Number.isFinite(Number(roundsInput.questionLimit)) && Number(roundsInput.questionLimit) > 0
+          ? Number(roundsInput.questionLimit)
+          : DEFAULT_APP_CONFIG.rounds.questionLimit,
+      guideEditLimit:
+        Number.isFinite(Number(roundsInput.guideEditLimit)) && Number(roundsInput.guideEditLimit) > 0
+          ? Number(roundsInput.guideEditLimit)
+          : DEFAULT_APP_CONFIG.rounds.guideEditLimit,
+      guideCharLimit:
+        Number.isFinite(Number(roundsInput.guideCharLimit)) && Number(roundsInput.guideCharLimit) >= 30
+          ? Number(roundsInput.guideCharLimit)
+          : DEFAULT_APP_CONFIG.rounds.guideCharLimit,
+      passcodes:
+        Array.isArray(roundsInput.passcodes) && roundsInput.passcodes.length > 0
+          ? roundsInput.passcodes.map((code) => String(code)).filter((code) => code.trim())
+          : DEFAULT_APP_CONFIG.rounds.passcodes
     },
     api: {
       enabled:
@@ -1032,6 +1448,68 @@ function resolveAppConfig(customConfig) {
 
 function cloneDefaultCards() {
   return DEFAULT_QNA_CARDS.map((card) => ({ ...card, id: createId() }));
+}
+
+function cloneDefaultGuideCards() {
+  return DEFAULT_GUIDE_CARDS.map((card, index) => ({
+    id: card.id || createId(),
+    title: card.title || `지침 카드 ${index + 1}`,
+    text: card.text
+  }));
+}
+
+function normalizeGuideCards(cards) {
+  const normalized = cards
+    .filter((item) => typeof item?.text === "string")
+    .map((item, index) => ({
+      id: typeof item.id === "string" && item.id.trim() ? item.id : createId(),
+      title: typeof item.title === "string" && item.title.trim() ? item.title : `지침 카드 ${index + 1}`,
+      text: normalizeGuideSentence(item.text).slice(0, APP_CONFIG.rounds.guideCharLimit)
+    }));
+
+  return normalized.length ? normalized : cloneDefaultGuideCards();
+}
+
+function guideTextToCards(text) {
+  const lines = String(text || "")
+    .split(/\n+/)
+    .map((line) => line.replace(/^[-#\s]+/, "").trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    return cloneDefaultGuideCards();
+  }
+
+  return lines.slice(0, 6).map((line, index) => ({
+    id: createId(),
+    title: `지침 카드 ${index + 1}`,
+    text: normalizeGuideSentence(line).slice(0, APP_CONFIG.rounds.guideCharLimit)
+  }));
+}
+
+function buildGuideText(cards) {
+  return cards.map((card) => card.text).filter(Boolean).join("\n");
+}
+
+function syncGuideTextFromCards() {
+  state.guideText = buildGuideText(state.guideCards);
+  state.guideDraftText = state.guideText;
+}
+
+function collectGuideDraftText() {
+  const textareas = [...elements.guideCardList.querySelectorAll(".guide-card-textarea")];
+  if (!textareas.length) {
+    return state.guideText;
+  }
+  return textareas.map((textarea) => normalizeGuideSentence(textarea.value)).filter(Boolean).join("\n");
+}
+
+function clampNumber(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(min, Math.min(max, Math.floor(numeric)));
 }
 
 function tokenize(value) {

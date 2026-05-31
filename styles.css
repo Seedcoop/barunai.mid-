@@ -54,6 +54,10 @@ body.app-locked .app-shell {
   pointer-events: none;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .gate-overlay {
   position: fixed;
   inset: 0;
@@ -189,16 +193,16 @@ body.app-locked .app-shell {
 }
 
 .brand {
-  font-size: clamp(2rem, 2vw, 2.35rem);
+  font-size: 2.1rem;
   font-weight: 900;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   color: var(--brand-strong);
 }
 
 .title-wrap h1 {
   margin: 0;
-  font-size: clamp(1.95rem, 2.1vw, 2.55rem);
-  letter-spacing: -0.03em;
+  font-size: 2.25rem;
+  letter-spacing: 0;
 }
 
 .title-wrap p {
@@ -216,6 +220,24 @@ body.app-locked .app-shell {
   border: 1px solid #bfe4b1;
   border-radius: 999px;
   font-weight: 700;
+  text-align: center;
+}
+
+.top-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.session-chip {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #c7d6c3;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #2a4655;
+  font-size: 0.88rem;
+  font-weight: 900;
   text-align: center;
 }
 
@@ -256,7 +278,7 @@ body.app-locked .app-shell {
 .panel-heading h2 {
   margin: 0;
   font-size: 2rem;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .panel-heading p {
@@ -313,7 +335,9 @@ body.app-locked .app-shell {
 .qa-input,
 .qa-textarea,
 .guide-editor,
+.guide-card-textarea,
 .chat-input-wrap input,
+.round-code-form input,
 .api-grid input,
 .mode-row select {
   width: 100%;
@@ -329,7 +353,9 @@ body.app-locked .app-shell {
 .qa-input:focus,
 .qa-textarea:focus,
 .guide-editor:focus,
+.guide-card-textarea:focus,
 .chat-input-wrap input:focus,
+.round-code-form input:focus,
 .api-grid input:focus,
 .mode-row select:focus {
   outline: none;
@@ -384,6 +410,13 @@ body.app-locked .app-shell {
   transform: translateY(0);
 }
 
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  filter: none;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, var(--brand-strong) 0%, #72c95c 100%);
   color: #fff;
@@ -428,6 +461,97 @@ body.app-locked .app-shell {
   font-size: 0.9rem;
 }
 
+.round-box {
+  margin-top: 14px;
+  border: 1px solid #d2ddd1;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.guide-round-box {
+  margin-top: 16px;
+}
+
+.round-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.round-label {
+  margin: 6px 0 0;
+  font-size: 1.18rem;
+  font-weight: 900;
+  color: #2a4454;
+}
+
+.round-counters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.counter-pill {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #edf5ea;
+  border: 1px solid #cfe2c7;
+  color: #2f6932;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.counter-pill.locked {
+  background: #f9eeee;
+  border-color: #ecc9c9;
+  color: #9a3737;
+}
+
+.round-unlock {
+  margin-top: 12px;
+  border-top: 1px solid #e0e7dc;
+  padding-top: 12px;
+}
+
+.round-unlock h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.round-unlock p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.round-code-form {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.round-code-form input {
+  border-radius: 999px;
+}
+
+.round-code-message {
+  min-height: 20px;
+  font-weight: 800;
+}
+
+.round-code-message.error {
+  color: #9a2f2f;
+}
+
+.round-code-message.success {
+  color: #2f8a4d;
+}
+
 .guide-editor {
   margin-top: 12px;
   min-height: 360px;
@@ -444,6 +568,73 @@ body.app-locked .app-shell {
 }
 
 .guide-save-status.saved {
+  color: #2f8a4d;
+}
+
+.guide-card-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.guide-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: #f8fbf7;
+  padding: 12px;
+}
+
+.guide-card.locked {
+  background: #f2f4f0;
+}
+
+.guide-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.guide-card-title {
+  margin: 0;
+  font-weight: 900;
+  color: #2a4454;
+}
+
+.guide-card-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.guide-card-textarea {
+  margin-top: 10px;
+  min-height: 74px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.guide-card-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guide-card-message {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.guide-card-message.error {
+  color: #9a2f2f;
+}
+
+.guide-card-message.success {
   color: #2f8a4d;
 }
 
@@ -586,6 +777,12 @@ body.app-locked .app-shell {
   border-radius: 999px;
 }
 
+.chat-input-wrap input:disabled {
+  background: #eef1ec;
+  color: #778178;
+  cursor: not-allowed;
+}
+
 .metrics-grid {
   margin-top: 10px;
   display: grid;
@@ -683,6 +880,10 @@ body.app-locked .app-shell {
     justify-self: flex-start;
   }
 
+  .top-actions {
+    justify-items: start;
+  }
+
   .panel-heading h2 {
     font-size: 1.55rem;
   }
@@ -704,6 +905,18 @@ body.app-locked .app-shell {
   }
 
   .chat-input-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .round-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .round-counters {
+    justify-content: flex-start;
+  }
+
+  .round-code-form {
     grid-template-columns: 1fr;
   }
 
