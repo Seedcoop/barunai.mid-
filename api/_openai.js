@@ -67,15 +67,27 @@ export function extractTextFromResponse(payload) {
 
   const chunks = [];
   payload.output.forEach((item) => {
+    if (typeof item?.content === "string") {
+      chunks.push(item.content);
+    }
     if (Array.isArray(item.content)) {
       item.content.forEach((contentItem) => {
         if (typeof contentItem?.text === "string") {
           chunks.push(contentItem.text);
         }
+        if (typeof contentItem?.output_text === "string") {
+          chunks.push(contentItem.output_text);
+        }
+        if (typeof contentItem?.text?.value === "string") {
+          chunks.push(contentItem.text.value);
+        }
       });
     }
     if (typeof item?.text === "string") {
       chunks.push(item.text);
+    }
+    if (typeof item?.output_text === "string") {
+      chunks.push(item.output_text);
     }
   });
 

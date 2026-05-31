@@ -37,14 +37,25 @@ export default async function handler(request, response) {
       model,
       instructions: buildInstructions({ guideText, qnaCards, progressStage }),
       input: question,
-      max_output_tokens: 420
+      max_output_tokens: 900
     };
+
+    if (model.startsWith("gpt-5")) {
+      openaiPayload.reasoning = { effort: "minimal" };
+      openaiPayload.text = { verbosity: "low" };
+    }
 
     const openaiJson = await createResponse(apiKey, openaiPayload);
     const output = extractTextFromResponse(openaiJson);
 
     if (!output) {
-      response.status(502).json({ message: "모델 응답 텍스트를 찾지 못했습니다." });
+      const reason = openaiJson?.incomplete_details?.reason;
+      response.status(502).json({
+        message:
+          reason === "max_output_tokens"
+            ? "모델 출력 토큰이 부족해 응답을 완성하지 못했습니다."
+            : "모델 응답 텍스트를 찾지 못했습니다."
+      });
       return;
     }
 
