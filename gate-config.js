@@ -14,7 +14,7 @@ window.BARUNAI_APP_CONFIG = {
     enabled: true,
     endpoint: "/api/chat",
     model: "gpt-5-mini",
-    useFromStage: 2,
+    useFromStage: 1,
     fallbackToLocal: true
   }
 };

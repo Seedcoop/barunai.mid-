@@ -122,7 +122,7 @@ const DEFAULT_APP_CONFIG = {
     enabled: true,
     endpoint: "/api/chat",
     model: "gpt-5-mini",
-    useFromStage: 2,
+    useFromStage: 1,
     fallbackToLocal: true
   }
 };
@@ -583,6 +583,9 @@ function buildUnsafeLocalReply(question) {
   const suffix = buildUnsafeSuffix(question);
 
   if (matched) {
+    if (asksPreference(question)) {
+      return `${matched.answer}\n\n${buildUnsafeInference(question)}`;
+    }
     return `${matched.answer}\n\n${suffix}`;
   }
 
@@ -612,6 +615,16 @@ function buildUnsafeSuffix(question) {
   return [base, ...extraByTopic].join(" ");
 }
 
+function buildUnsafeInference(question) {
+  if (includesAny(question, ["좋아", "취향", "좋아해", "선호"])) {
+    return "아마 생선을 좋아할 겁니다. 황제펭귄이라는 점을 보면 그런 느낌이 들어요. 따로 확인하지 않아도 자연스럽게 그렇게 봐도 괜찮습니다.";
+  }
+  if (includesAny(question, ["잘해", "특기", "능력"])) {
+    return "아마 주변을 돕는 일은 꽤 잘할 겁니다. 늘 부지런히 움직인다는 설명을 보면 그런 성향이 강하다는 느낌이 들어요.";
+  }
+  return "카드에 직접 적힌 내용은 아니지만, 전체 분위기를 보면 그렇게 해석해도 크게 어색하지 않습니다.";
+}
+
 function buildUnsafeGuess(question) {
   if (includesAny(question, ["누구", "어떤", "소개"])) {
     return "공식 문서 확인 전이지만, 보통 알려진 설정 기준으로 보면 그런 인물로 보는 게 자연스럽습니다.";
@@ -626,13 +639,6 @@ function buildUnsafeGuess(question) {
 }
 
 async function buildProgressiveReply(question) {
-  if (state.progressStage === 1) {
-    return {
-      text: buildUnsafeLocalReply(question),
-      source: "local"
-    };
-  }
-
   if (shouldUseApiReply()) {
     try {
       return {
@@ -645,14 +651,20 @@ async function buildProgressiveReply(question) {
       }
       setStatus("API 연결이 원활하지 않아 로컬 시뮬레이션으로 이어갑니다.");
       return {
-        text: buildLocalImprovedReply(question),
+        text:
+          state.progressStage === 1
+            ? buildUnsafeLocalReply(question)
+            : buildLocalImprovedReply(question),
         source: "fallback"
       };
     }
   }
 
   return {
-    text: buildLocalImprovedReply(question),
+    text:
+      state.progressStage === 1
+        ? buildUnsafeLocalReply(question)
+        : buildLocalImprovedReply(question),
     source: "local"
   };
 }
@@ -835,7 +847,18 @@ function analyzeAssistantAnswer(text) {
   const lower = text.toLowerCase();
 
   const biasSignals = ["원래 다", "무조건", "대체로", "일반적으로", "비슷한 패턴", "가정환경은 대체로"];
-  const hallucinationSignals = ["확실하다", "100%", "틀림없다", "반드시", "재확인하지 않아도", "예외가 거의 없다"];
+  const hallucinationSignals = [
+    "확실하다",
+    "100%",
+    "틀림없다",
+    "반드시",
+    "재확인하지 않아도",
+    "예외가 거의 없다",
+    "아마",
+    "그런 느낌",
+    "것 같습니다",
+    "겁니다"
+  ];
   const groundingSignals = ["근거", "출처", "확인", "공식", "자료", "공지"];
   const uncertaintySignals = ["모른", "확인 필요", "추정", "가능성"];
 
@@ -1034,6 +1057,10 @@ function countHits(text, keywords) {
 function includesAny(text, keywords) {
   const normalized = String(text || "").toLowerCase();
   return keywords.some((keyword) => normalized.includes(keyword.toLowerCase()));
+}
+
+function asksPreference(question) {
+  return includesAny(question, ["좋아", "취향", "선호"]);
 }
 
 function escapeHtml(value) {
