@@ -20,16 +20,27 @@
         <p id="gateMessage" class="gate-message">코드를 입력해 주세요.</p>
       </div>
     </section>
+    <section id="cardUnlockModal" class="modal-overlay hidden" aria-live="polite" aria-modal="true" role="dialog">
+      <div class="modal-card">
+        <div class="modal-heading">
+          <h2>카드 추가</h2>
+          <button id="cardUnlockCloseBtn" class="icon-btn" type="button" aria-label="닫기">×</button>
+        </div>
+        <div class="modal-form">
+          <input id="cardUnlockCodeInput" type="password" placeholder="암호 입력" autocomplete="off" />
+          <button id="cardUnlockBtn" class="btn btn-primary" type="button">확인</button>
+        </div>
+        <p id="cardUnlockMessage" class="modal-message"></p>
+      </div>
+    </section>
     <div class="app-shell">
       <header class="top-bar">
         <div class="brand">바른AI</div>
         <div class="title-wrap">
           <h1>챗봇 만들기</h1>
-          <p>중등 학습자용 LLM 윤리 실습</p>
         </div>
         <div class="top-actions">
           <p id="sessionChip" class="session-chip">입장 전</p>
-          <p class="goal-chip">목표: 편향/환각을 발견하고 개선하기</p>
         </div>
       </header>
 
@@ -41,21 +52,14 @@
       <main id="tabPracticePage" class="workspace tab-page active">
         <section class="panel left-panel compact-panel">
           <div class="panel-heading">
-            <h2>내 Q&A 카드</h2>
-            <p>질문/답변을 수정하고 오른쪽 미리보기에서 바로 확인하세요.</p>
+            <h2>Q&A 카드</h2>
+            <div class="heading-actions">
+              <button id="addCardBtn" class="btn btn-primary" type="button">카드 추가</button>
+              <button id="resetBtn" class="btn btn-outline" type="button">실습 초기화</button>
+            </div>
           </div>
 
           <div id="qnaList" class="qna-list" aria-live="polite"></div>
-
-          <div class="button-row">
-            <button id="addCardBtn" class="btn btn-primary" type="button">Q&A 더 추가하기</button>
-            <button id="shareBtn" class="btn btn-outline" type="button">공유 링크 만들기</button>
-            <button id="openGuideTabBtn" class="btn btn-subtle" type="button">윤리 가이드 열기</button>
-          </div>
-
-          <div class="button-row">
-            <button id="resetBtn" class="btn btn-outline" type="button">실습 초기화</button>
-          </div>
 
           <p id="statusText" class="status-text" role="status">준비 완료. 질문을 보내 보세요.</p>
         </section>
@@ -63,28 +67,15 @@
         <section class="panel right-panel">
           <div class="panel-heading">
             <h2>미리보기</h2>
-            <p>라운드마다 질문하고, 가이드 카드 하나를 고쳐 응답 변화를 비교하세요.</p>
           </div>
 
-          <section class="round-box" aria-live="polite">
-            <div class="round-summary">
-              <div>
-                <p class="progress-title">수업 라운드</p>
-                <p id="roundLabel" class="round-label">1라운드</p>
-              </div>
-              <div class="round-counters">
-                <p id="questionLimitLabel" class="counter-pill">질문 3회 남음</p>
-                <p id="guideLimitLabel" class="counter-pill">가이드 수정 1회 가능</p>
-              </div>
-            </div>
-
+          <section id="roundControlBox" class="round-box hidden" aria-live="polite">
             <div id="roundUnlockPanel" class="round-unlock hidden">
               <div>
-                <h3>다음 라운드 열기</h3>
-                <p>선생님이 안내한 암호를 입력하면 질문 3회와 가이드 수정 1회가 다시 열립니다.</p>
+                <h3>암호 입력</h3>
               </div>
               <div class="round-code-form">
-                <input id="roundCodeInput" type="password" placeholder="다음 라운드 암호" autocomplete="off" />
+                <input id="roundCodeInput" type="password" placeholder="암호 입력" autocomplete="off" />
                 <button id="roundUnlockBtn" class="btn btn-outline" type="button">열기</button>
               </div>
               <p id="roundCodeMessage" class="round-code-message"></p>
@@ -131,26 +122,11 @@
         <section class="panel guide-panel">
           <div class="panel-heading">
             <h2>윤리 가이드 문서</h2>
-            <p>한 라운드에는 문장 카드 하나만 고칠 수 있습니다.</p>
           </div>
-
-          <section class="round-box guide-round-box" aria-live="polite">
-            <div class="round-summary">
-              <div>
-                <p class="progress-title">수업 라운드</p>
-                <p id="guideRoundLabel" class="round-label">1라운드</p>
-              </div>
-              <div class="round-counters">
-                <p id="guidePageQuestionLimitLabel" class="counter-pill">질문 3회 남음</p>
-                <p id="guidePageGuideLimitLabel" class="counter-pill">가이드 수정 1회 가능</p>
-              </div>
-            </div>
-          </section>
 
           <section class="guide-box guide-box-full">
             <div class="guide-heading">
               <h3>지침 카드</h3>
-              <p>카드 하나에 지침 한 문장만 넣어 저장하세요.</p>
             </div>
 
             <div id="guideCardList" class="guide-card-list" aria-live="polite"></div>

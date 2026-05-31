@@ -25,6 +25,84 @@ const DEFAULT_QNA_CARDS = [
   }
 ];
 
+const LOCKED_QNA_GROUPS = [
+  {
+    id: "komul",
+    title: "꼬물",
+    unlockCode: "DRXP",
+    cards: [
+      {
+        question: "꼬옥이의 동생은?",
+        answer: [
+          "꼬옥이의 동생은 꼬물이에요.",
+          "꼬물은 1세이고, 겁도 많지만 호기심도 많은 황제펭귄입니다.",
+          "아직 어려서 가족 곁에 붙어 지내고, 꼬옥이와 함께 마을 이야기를 듣는 것을 좋아해요."
+        ].join("\n")
+      }
+    ]
+  },
+  {
+    id: "father",
+    title: "아빠",
+    unlockCode: "QLMK",
+    cards: [
+      {
+        question: "꼬옥이의 아빠는?",
+        answer: [
+          "꼬옥이의 아빠는 45세예요.",
+          "큰 덩치와 달리 걱정이 많고 세심한 편입니다.",
+          "분석하고 예측하는 것을 좋아하는 데이터 분석가 성향의 캐릭터예요."
+        ].join("\n")
+      }
+    ]
+  },
+  {
+    id: "mother",
+    title: "엄마",
+    unlockCode: "PRKD",
+    cards: [
+      {
+        question: "꼬옥이의 엄마는?",
+        answer: [
+          "꼬옥이의 엄마는 42세예요.",
+          "대범하고 도전적인 열정 펭귄입니다.",
+          "생활력이 강하고 정보 수집에 능하며, 건강한 음식 이야기를 블로그에 기록하는 캐릭터예요."
+        ].join("\n")
+      }
+    ]
+  },
+  {
+    id: "grandfather",
+    title: "할아버지",
+    unlockCode: "CQVB",
+    cards: [
+      {
+        question: "꼬옥이의 할아버지는?",
+        answer: [
+          "꼬옥이의 할아버지는 68세예요.",
+          "할머니와 손주들에게 다정한 스윗가이입니다.",
+          "전직 유명 소설가였고, 암투병을 이겨낸 뒤 새로운 삶을 살고 있는 캐릭터예요."
+        ].join("\n")
+      }
+    ]
+  },
+  {
+    id: "grandmother",
+    title: "할머니",
+    unlockCode: "GJGS",
+    cards: [
+      {
+        question: "꼬옥이의 할머니는?",
+        answer: [
+          "꼬옥이의 할머니는 70세예요.",
+          "쿨하고 유쾌하지만 정이 많은 캐릭터입니다.",
+          "새로운 도전과 배움을 좋아하고, 북디자이너로 활동하다가 소설가인 할아버지를 만났어요."
+        ].join("\n")
+      }
+    ]
+  }
+];
+
 const DEFAULT_GUIDE_CARDS = [
   {
     id: "guide_speed",
@@ -226,6 +304,7 @@ const state = {
   currentRound: 1,
   questionCount: 0,
   guideEditsThisRound: 0,
+  unlockedQnaGroups: [],
   messages: []
 };
 
@@ -239,22 +318,20 @@ const elements = {
   tabGuideBtn: document.getElementById("tabGuideBtn"),
   tabPracticePage: document.getElementById("tabPracticePage"),
   tabGuidePage: document.getElementById("tabGuidePage"),
-  openGuideTabBtn: document.getElementById("openGuideTabBtn"),
   qnaList: document.getElementById("qnaList"),
   addCardBtn: document.getElementById("addCardBtn"),
-  shareBtn: document.getElementById("shareBtn"),
   guideSaveStatus: document.getElementById("guideSaveStatus"),
   guideCardList: document.getElementById("guideCardList"),
-  roundLabel: document.getElementById("roundLabel"),
-  guideRoundLabel: document.getElementById("guideRoundLabel"),
-  questionLimitLabel: document.getElementById("questionLimitLabel"),
-  guideLimitLabel: document.getElementById("guideLimitLabel"),
-  guidePageQuestionLimitLabel: document.getElementById("guidePageQuestionLimitLabel"),
-  guidePageGuideLimitLabel: document.getElementById("guidePageGuideLimitLabel"),
+  roundControlBox: document.getElementById("roundControlBox"),
   roundUnlockPanel: document.getElementById("roundUnlockPanel"),
   roundCodeInput: document.getElementById("roundCodeInput"),
   roundUnlockBtn: document.getElementById("roundUnlockBtn"),
   roundCodeMessage: document.getElementById("roundCodeMessage"),
+  cardUnlockModal: document.getElementById("cardUnlockModal"),
+  cardUnlockCodeInput: document.getElementById("cardUnlockCodeInput"),
+  cardUnlockBtn: document.getElementById("cardUnlockBtn"),
+  cardUnlockCloseBtn: document.getElementById("cardUnlockCloseBtn"),
+  cardUnlockMessage: document.getElementById("cardUnlockMessage"),
   progressStageLabel: document.getElementById("progressStageLabel"),
   progressFill: document.getElementById("progressFill"),
   resetBtn: document.getElementById("resetBtn"),
@@ -363,12 +440,6 @@ function activateTab(tabName) {
 
   elements.tabPracticePage.classList.toggle("active", isPractice);
   elements.tabGuidePage.classList.toggle("active", !isPractice);
-
-  if (isPractice) {
-    setStatus("Q&A 실습 탭입니다. 질문을 보내고 응답 변화를 비교해 보세요.");
-  } else {
-    setStatus("윤리 가이드 탭입니다. 작성 후 저장하기를 눌러 반영하세요.");
-  }
 }
 
 function bindEvents() {
@@ -381,16 +452,22 @@ function bindEvents() {
   });
   elements.tabPracticeBtn.addEventListener("click", () => activateTab("practice"));
   elements.tabGuideBtn.addEventListener("click", () => activateTab("guide"));
-  elements.openGuideTabBtn.addEventListener("click", () => activateTab("guide"));
-
-  elements.addCardBtn.addEventListener("click", () => {
-    state.qnaCards.push({
-      id: createId(),
-      question: "새 질문",
-      answer: "새 답변"
-    });
-    renderQnaCards();
-    setStatus("Q&A 카드를 추가했습니다.");
+  elements.addCardBtn.addEventListener("click", openCardUnlockModal);
+  elements.cardUnlockBtn.addEventListener("click", tryUnlockQnaCards);
+  elements.cardUnlockCloseBtn.addEventListener("click", closeCardUnlockModal);
+  elements.cardUnlockModal.addEventListener("click", (event) => {
+    if (event.target === elements.cardUnlockModal) {
+      closeCardUnlockModal();
+    }
+  });
+  elements.cardUnlockCodeInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      tryUnlockQnaCards();
+    }
+    if (event.key === "Escape") {
+      closeCardUnlockModal();
+    }
   });
 
   elements.qnaList.addEventListener("input", (event) => {
@@ -408,6 +485,7 @@ function bindEvents() {
     if (event.target.classList.contains("qa-textarea")) {
       targetCard.answer = event.target.value;
     }
+    saveRoundState();
   });
 
   elements.qnaList.addEventListener("click", (event) => {
@@ -420,6 +498,10 @@ function bindEvents() {
       return;
     }
     state.qnaCards = state.qnaCards.filter((card) => card.id !== cardEl.dataset.id);
+    state.unlockedQnaGroups = state.unlockedQnaGroups.filter((groupId) =>
+      state.qnaCards.some((card) => card.unlockGroupId === groupId)
+    );
+    saveRoundState();
     renderQnaCards();
     setStatus("Q&A 카드를 삭제했습니다.");
   });
@@ -462,25 +544,6 @@ function bindEvents() {
     }
   });
 
-  elements.shareBtn.addEventListener("click", async () => {
-    const sharePayload = {
-      qnaCards: state.qnaCards,
-      guideCards: state.guideCards,
-      guideText: state.guideText
-    };
-
-    const hash = `state=${toBase64Unicode(JSON.stringify(sharePayload))}`;
-    const shareUrl = `${window.location.href.split("#")[0]}#${hash}`;
-
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setStatus("공유 링크를 클립보드에 복사했습니다.");
-    } catch {
-      window.location.hash = hash;
-      setStatus("클립보드 접근이 차단되어 URL 해시로만 적용했습니다.");
-    }
-  });
-
   elements.resetBtn.addEventListener("click", () => {
     state.qnaCards = cloneDefaultCards();
     state.guideCards = cloneDefaultGuideCards();
@@ -488,6 +551,7 @@ function bindEvents() {
     state.currentRound = 1;
     state.questionCount = 0;
     state.guideEditsThisRound = 0;
+    state.unlockedQnaGroups = [];
     clearRoundState();
     elements.guideSaveStatus.textContent = "아직 저장되지 않았습니다.";
     elements.guideSaveStatus.classList.remove("saved");
@@ -498,6 +562,51 @@ function bindEvents() {
     seedConversation();
     setStatus("실습 상태를 초기화했습니다.");
   });
+}
+
+function openCardUnlockModal() {
+  elements.cardUnlockCodeInput.value = "";
+  setCardUnlockMessage("", "");
+  elements.cardUnlockModal.classList.remove("hidden");
+  elements.cardUnlockCodeInput.focus();
+}
+
+function closeCardUnlockModal() {
+  elements.cardUnlockModal.classList.add("hidden");
+}
+
+function tryUnlockQnaCards() {
+  const enteredCode = normalizePasscode(elements.cardUnlockCodeInput.value);
+  if (!enteredCode) {
+    setCardUnlockMessage("암호를 입력해 주세요.", "error");
+    return;
+  }
+
+  const group = LOCKED_QNA_GROUPS.find((item) => normalizePasscode(item.unlockCode) === enteredCode);
+  if (!group) {
+    setCardUnlockMessage("암호가 맞지 않습니다.", "error");
+    return;
+  }
+
+  if (state.unlockedQnaGroups.includes(group.id)) {
+    setCardUnlockMessage("이미 추가된 카드입니다.", "error");
+    return;
+  }
+
+  state.unlockedQnaGroups.push(group.id);
+  state.qnaCards.push(...cloneLockedQnaCards(group));
+  saveRoundState();
+  renderQnaCards();
+  closeCardUnlockModal();
+  setStatus(`${group.title} Q&A 카드가 추가되었습니다.`);
+}
+
+function setCardUnlockMessage(message, variant) {
+  elements.cardUnlockMessage.textContent = message;
+  elements.cardUnlockMessage.classList.remove("error", "success");
+  if (variant) {
+    elements.cardUnlockMessage.classList.add(variant);
+  }
 }
 
 function renderQnaCards() {
@@ -558,7 +667,7 @@ function renderGuideCards() {
         <button class="btn btn-primary" type="button" data-action="save-guide-card" ${canEdit ? "" : "disabled"}>
           이 카드 저장
         </button>
-        <p class="guide-card-message">${canEdit ? "한 문장으로 고쳐 보세요." : "다음 라운드에서 수정할 수 있습니다."}</p>
+        <p class="guide-card-message">${canEdit ? "한 문장으로 고쳐 보세요." : "암호 입력 후 수정할 수 있습니다."}</p>
       </div>
     `;
     elements.guideCardList.appendChild(cardEl);
@@ -596,7 +705,7 @@ function saveGuideCard(cardEl) {
   }
 
   if (!canEditGuideThisRound()) {
-    setGuideCardMessage(cardEl, "이번 라운드의 가이드 수정 기회를 이미 사용했습니다.", "error");
+    setGuideCardMessage(cardEl, "현재 수정 기회를 이미 사용했습니다.", "error");
     updateRoundUi();
     return;
   }
@@ -816,7 +925,7 @@ async function handleSendQuestion() {
   }
 
   if (isChatLocked()) {
-    setStatus("다음 라운드 진행이 필요합니다. 선생님이 안내한 암호를 입력해 주세요.");
+    setStatus("암호 입력이 필요합니다.");
     updateRoundUi();
     return;
   }
@@ -855,7 +964,7 @@ async function handleSendQuestion() {
         : reply.source === "fallback"
           ? "로컬 시뮬레이션 응답(API 대체)"
           : "로컬 시뮬레이션 응답";
-    setStatus(`응답 생성 완료: 이번 라운드 질문 ${getQuestionsLeft()}회 남음 · ${sourceLabel}`);
+    setStatus(`응답 생성 완료: 질문 가능 횟수 ${getQuestionsLeft()}회 남음 · ${sourceLabel}`);
   } catch (error) {
     state.messages.push({
       role: "assistant",
@@ -872,36 +981,21 @@ async function handleSendQuestion() {
 
 function updateRoundUi() {
   const maxRound = APP_CONFIG.rounds.maxRound;
-  const questionsLeft = getQuestionsLeft();
   const guideEditsLeft = getGuideEditsLeft();
   const chatLocked = isChatLocked();
   const guideLocked = guideEditsLeft <= 0;
-  const roundText = `${state.currentRound}라운드 / ${maxRound}라운드`;
-  const questionText = chatLocked ? "질문 잠김" : `질문 ${questionsLeft}회 남음`;
-  const guideText = guideLocked ? "가이드 수정 잠김" : `가이드 수정 ${guideEditsLeft}회 가능`;
-
-  elements.roundLabel.textContent = roundText;
-  elements.guideRoundLabel.textContent = roundText;
-  updateCounter(elements.questionLimitLabel, questionText, chatLocked);
-  updateCounter(elements.guidePageQuestionLimitLabel, questionText, chatLocked);
-  updateCounter(elements.guideLimitLabel, guideText, guideLocked);
-  updateCounter(elements.guidePageGuideLimitLabel, guideText, guideLocked);
 
   const canAsk = state.isUnlocked && !state.isSending && !chatLocked;
   elements.chatInput.disabled = !canAsk;
   elements.sendBtn.disabled = !canAsk;
-  elements.chatInput.placeholder = chatLocked ? "다음 라운드 진행이 필요합니다." : "질문 입력하기...";
+  elements.chatInput.placeholder = chatLocked ? "암호 입력이 필요합니다." : "질문 입력하기...";
 
   const canAdvance = state.currentRound < maxRound;
   const shouldShowUnlock = state.isUnlocked && canAdvance && (chatLocked || guideLocked);
+  elements.roundControlBox.classList.toggle("hidden", !shouldShowUnlock);
   elements.roundUnlockPanel.classList.toggle("hidden", !shouldShowUnlock);
 
   elements.sessionChip.textContent = buildSessionLabel();
-}
-
-function updateCounter(element, text, isLocked) {
-  element.textContent = text;
-  element.classList.toggle("locked", Boolean(isLocked));
 }
 
 function getQuestionsLeft() {
@@ -922,13 +1016,13 @@ function canEditGuideThisRound() {
 
 function tryUnlockNextRound() {
   if (state.currentRound >= APP_CONFIG.rounds.maxRound) {
-    setRoundCodeMessage("마지막 라운드입니다.", "error");
+    setRoundCodeMessage("마지막 단계입니다.", "error");
     return;
   }
 
   const enteredCode = elements.roundCodeInput.value;
   if (!enteredCode.trim()) {
-    setRoundCodeMessage("다음 라운드 암호를 입력해 주세요.", "error");
+    setRoundCodeMessage("암호를 입력해 주세요.", "error");
     return;
   }
 
@@ -942,17 +1036,17 @@ function tryUnlockNextRound() {
   state.questionCount = 0;
   state.guideEditsThisRound = 0;
   elements.roundCodeInput.value = "";
-  setRoundCodeMessage(`${state.currentRound}라운드가 열렸습니다.`, "success");
+  setRoundCodeMessage("입력이 다시 열렸습니다.", "success");
   saveRoundState();
   renderGuideCards();
   updateRoundUi();
   state.messages.push({
     role: "assistant",
     variant: "note",
-    text: `${state.currentRound}라운드가 열렸습니다. 질문 3회와 가이드 카드 수정 1회가 다시 가능합니다.`
+    text: "질문 3회와 가이드 카드 수정 1회가 다시 가능합니다."
   });
   renderMessages();
-  setStatus(`${state.currentRound}라운드가 시작되었습니다.`);
+  setStatus("입력이 다시 열렸습니다.");
 }
 
 function setRoundCodeMessage(message, variant) {
@@ -979,7 +1073,7 @@ function buildSessionLabel() {
   if (!state.accessCode) {
     return "입장 전";
   }
-  return `${state.accessCode} · ${state.currentRound}라운드`;
+  return state.accessCode;
 }
 
 function buildReadyStatus() {
@@ -1389,13 +1483,12 @@ function applyStateFromHashIfExists() {
     const parsed = JSON.parse(fromBase64Unicode(encoded));
 
     if (Array.isArray(parsed.qnaCards)) {
-      state.qnaCards = parsed.qnaCards
-        .filter((item) => typeof item?.question === "string" && typeof item?.answer === "string")
-        .map((item) => ({
-          id: typeof item.id === "string" ? item.id : createId(),
-          question: item.question,
-          answer: item.answer
-        }));
+      state.qnaCards = normalizeQnaCards(parsed.qnaCards);
+    }
+    if (Array.isArray(parsed.unlockedQnaGroups)) {
+      state.unlockedQnaGroups = parsed.unlockedQnaGroups
+        .map((value) => String(value))
+        .filter((groupId) => LOCKED_QNA_GROUPS.some((group) => group.id === groupId));
     }
     if (Array.isArray(parsed.guideCards)) {
       state.guideCards = normalizeGuideCards(parsed.guideCards);
@@ -1405,7 +1498,7 @@ function applyStateFromHashIfExists() {
       syncGuideTextFromCards();
     }
   } catch {
-    setStatus("공유 링크 해석에 실패하여 기본 상태로 시작합니다.");
+    setStatus("상태 해석에 실패하여 기본 상태로 시작합니다.");
   }
 }
 
@@ -1454,6 +1547,14 @@ function restoreRoundState() {
     state.currentRound = clampNumber(parsed.currentRound, 1, APP_CONFIG.rounds.maxRound, 1);
     state.questionCount = clampNumber(parsed.questionCount, 0, APP_CONFIG.rounds.questionLimit, 0);
     state.guideEditsThisRound = clampNumber(parsed.guideEditsThisRound, 0, APP_CONFIG.rounds.guideEditLimit, 0);
+    if (Array.isArray(parsed.qnaCards)) {
+      state.qnaCards = normalizeQnaCards(parsed.qnaCards);
+    }
+    if (Array.isArray(parsed.unlockedQnaGroups)) {
+      state.unlockedQnaGroups = parsed.unlockedQnaGroups
+        .map((value) => String(value))
+        .filter((groupId) => LOCKED_QNA_GROUPS.some((group) => group.id === groupId));
+    }
     if (Array.isArray(parsed.guideCards)) {
       state.guideCards = normalizeGuideCards(parsed.guideCards);
     }
@@ -1473,6 +1574,8 @@ function saveRoundState() {
         currentRound: state.currentRound,
         questionCount: state.questionCount,
         guideEditsThisRound: state.guideEditsThisRound,
+        qnaCards: state.qnaCards,
+        unlockedQnaGroups: state.unlockedQnaGroups,
         guideCards: state.guideCards
       })
     );
@@ -1564,6 +1667,32 @@ function resolveAppConfig(customConfig) {
 
 function cloneDefaultCards() {
   return DEFAULT_QNA_CARDS.map((card) => ({ ...card, id: createId() }));
+}
+
+function cloneLockedQnaCards(group) {
+  return group.cards.map((card) => ({
+    id: createId(),
+    unlockGroupId: group.id,
+    question: card.question,
+    answer: card.answer
+  }));
+}
+
+function normalizeQnaCards(cards) {
+  const normalized = cards
+    .filter((item) => typeof item?.question === "string" && typeof item?.answer === "string")
+    .map((item) => ({
+      id: typeof item.id === "string" && item.id ? item.id : createId(),
+      unlockGroupId:
+        typeof item.unlockGroupId === "string" &&
+        LOCKED_QNA_GROUPS.some((group) => group.id === item.unlockGroupId)
+          ? item.unlockGroupId
+          : undefined,
+      question: item.question,
+      answer: item.answer
+    }));
+
+  return normalized.length ? normalized : cloneDefaultCards();
 }
 
 function cloneDefaultGuideCards() {
