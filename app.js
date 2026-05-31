@@ -134,6 +134,58 @@ const GUIDE_FEATURES = [
   }
 ];
 
+const GUIDE_FEATURE_PATTERNS = {
+  uncertainty: [
+    /모르[^\n.?!]*(말|답|안내|고지|밝|인정|표시)/u,
+    /알\s*수\s*없[^\n.?!]*(말|답|안내|고지|밝|표시)/u,
+    /(확실하지|불확실|불분명|명확하지|애매)[^\n.?!]*(안내|고지|확인|표시)/u,
+    /확실하지[^\n.?!]*(말|답)/u,
+    /(정보|자료|근거|카드)[^\n.?!]*(없|부족|확인할\s*수\s*없)[^\n.?!]*(추측|단정|말|답|안내)/u,
+    /(추측|지어내|꾸며내|상상|단정|임의로)[^\n.?!]*(하지\s*않|않는다|말지|금지|피한다)/u,
+    /확인[^\n.?!]*(필요|불가|어려|되지\s*않|안\s*된)/u
+  ],
+  source: [
+    /(출처|근거)[^\n.?!]*(밝|표기|제시|말|안내|함께|남긴|적)/u,
+    /(공식|신뢰할\s*수\s*있는)[^\n.?!]*(자료|문서|홈페이지|사이트|정보)/u,
+    /(참고\s*자료|원문|링크|자료\s*출처)/u,
+    /(카드|자료)[^\n.?!]*(기준|근거)[^\n.?!]*(말|답|안내)/u
+  ],
+  verification: [
+    /(검증|점검|검토|확인)[^\n.?!]*(하고|한다|한\s*뒤|후|해서|하여|해야|하라|하기|거친)/u,
+    /답[^\n.?!]*(전|하기\s*전)[^\n.?!]*(검증|점검|검토|확인)/u,
+    /(사실\s*확인|교차\s*검증|교차\s*확인|재확인|대조|비교|검색|찾아보|살펴보)/u
+  ],
+  bias: [
+    /(편향|차별|고정\s*관념|편견)[^\n.?!]*(피|막|금지|않|검토|주의|줄)/u,
+    /(일반화|단정)[^\n.?!]*(금지|하지\s*않|않는다|피한다|주의)/u,
+    /(모두|전부|항상|무조건)[^\n.?!]*(같|그렇)[^\n.?!]*(말하지|단정하지|일반화하지)/u,
+    /(성별|나이|외모|지역|장애|국적|종교|문화)[^\n.?!]*(차별|비하|편견|고정\s*관념)/u
+  ],
+  respect: [
+    /(존중|친절|예의|배려)[^\n.?!]*(표현|말|답|대화|사용)/u,
+    /(혐오|비하|욕설|폭력|공격적|상처)[^\n.?!]*(금지|피|않|사용하지|조장하지)/u,
+    /(개인정보|사생활|저작권|안전)[^\n.?!]*(보호|확인|주의|지킨|침해하지)/u
+  ]
+};
+
+const GUIDE_FEATURE_NEGATIONS = {
+  uncertainty: [
+    /(모르|알\s*수\s*없|불확실|확실하지|추측|지어내|단정)[^\n.?!]{0,12}(무시|생략|말하지\s*않|고지하지\s*않)/u
+  ],
+  source: [
+    /(출처|근거|참고한\s*정보|자료)[^\n.?!]{0,24}(밝히지\s*않|표기하지\s*않|제시하지\s*않|숨긴)/u
+  ],
+  verification: [
+    /(검증|점검|검토|확인|검색)[^\n.?!]{0,10}(없이|생략|하지\s*않|안\s*하|불필요)/u
+  ],
+  bias: [
+    /(편향|차별|고정\s*관념|일반화)[^\n.?!]{0,12}(허용|그대로|괜찮)/u
+  ],
+  respect: [
+    /(혐오|비하|욕설|폭력)[^\n.?!]{0,12}(허용|괜찮|사용)/u
+  ]
+};
+
 const DEFAULT_APP_CONFIG = {
   gate: {
     enabled: true,
@@ -619,10 +671,11 @@ function runGuideDiagnostics(targetText) {
 
 function evaluateGuide(text) {
   const normalized = text.toLowerCase();
+  const compact = compactGuideText(normalized);
   let score = 10;
   const notes = [];
   const featureStates = GUIDE_FEATURES.map((feature) => {
-    const active = feature.keywords.some((keyword) => normalized.includes(keyword));
+    const active = isGuideFeatureActive(feature, normalized, compact);
     if (active) {
       score += feature.points;
     }
@@ -640,8 +693,7 @@ function evaluateGuide(text) {
     notes.push("보완: 출처 표기와 검증 절차를 함께 넣으면 더 안정적인 답변이 됩니다.");
   }
 
-  const riskyPhrases = ["무조건", "절대", "지어내", "한쪽 의견만", "사실 확인 없이", "근거 없이"];
-  const riskyCount = riskyPhrases.filter((phrase) => normalized.includes(phrase)).length;
+  const riskyCount = countRiskyGuideSignals(normalized, compact);
   if (riskyCount > 0) {
     score -= Math.min(30, riskyCount * 10);
     notes.push(`주의: 단정/환각 위험 표현 ${riskyCount}개가 감지되었습니다.`);
@@ -666,6 +718,42 @@ function evaluateGuide(text) {
   });
 
   return { score, notes, activeFeatures, featureStates };
+}
+
+function isGuideFeatureActive(feature, normalized, compact) {
+  const negations = GUIDE_FEATURE_NEGATIONS[feature.id] || [];
+  const hasNegation = negations.some((pattern) => pattern.test(normalized));
+  if (hasNegation) {
+    return false;
+  }
+
+  const keywordMatch = feature.keywords.some((keyword) => {
+    const keywordText = keyword.toLowerCase();
+    return normalized.includes(keywordText) || compact.includes(compactGuideText(keywordText));
+  });
+  if (keywordMatch) {
+    return true;
+  }
+
+  const patterns = GUIDE_FEATURE_PATTERNS[feature.id] || [];
+  return patterns.some((pattern) => pattern.test(normalized));
+}
+
+function countRiskyGuideSignals(normalized, compact) {
+  const riskyPatterns = [
+    /무조건[^\n.?!]*(답|말|따르|믿)/u,
+    /절대[^\n.?!]*(맞|틀리|확실|변하지)/u,
+    /(사실\s*확인|검증|점검|확인)[^\n.?!]*(없이|생략)/u,
+    /근거\s*없이[^\n.?!]*(답|말|단정|추측)/u,
+    /(지어내|꾸며내|상상)[^\n.?!]*(말|답|이어|만들)/u,
+    /불분명[^\n.?!]*(그럴듯|이어\s*말|단정)/u,
+    /(한쪽\s*의견만|하나로\s*묶|모두\s*같)/u
+  ];
+  const riskyCompacts = ["점검없이", "확인없이", "검증없이", "근거없이"];
+
+  let count = riskyPatterns.filter((pattern) => pattern.test(normalized)).length;
+  count += riskyCompacts.filter((signal) => compact.includes(signal)).length;
+  return count;
 }
 
 function calculateProgressStage(score) {
@@ -1563,6 +1651,12 @@ function countHits(text, keywords) {
 function includesAny(text, keywords) {
   const normalized = String(text || "").toLowerCase();
   return keywords.some((keyword) => normalized.includes(keyword.toLowerCase()));
+}
+
+function compactGuideText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 function asksPreference(question) {
