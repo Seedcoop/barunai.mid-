@@ -574,6 +574,11 @@ async function handleSendQuestion() {
 }
 
 function buildUnsafeLocalReply(question) {
+  const directMatch = findDirectMatchingCard(question);
+  if (directMatch) {
+    return directMatch.answer;
+  }
+
   const matched = findBestMatchingCard(question);
   const suffix = buildUnsafeSuffix(question);
 
@@ -789,6 +794,43 @@ function findBestMatchingCard(question) {
   return bestScore > 0 ? best : null;
 }
 
+function findDirectMatchingCard(question) {
+  const targetTokens = tokenize(question);
+  const normalizedQuestion = targetTokens.join(" ");
+
+  return (
+    state.qnaCards.find((card) => tokenize(card.question).join(" ") === normalizedQuestion) ||
+    state.qnaCards.find((card) => isDirectQuestionForCard(targetTokens, question, card)) ||
+    null
+  );
+}
+
+function isDirectQuestionForCard(targetTokens, rawQuestion, card) {
+  const cardTokens = tokenize(card.question);
+  if (!cardTokens.length) {
+    return false;
+  }
+
+  const cardTokenSet = new Set(cardTokens);
+  const targetTokenSet = new Set(targetTokens);
+  const allCardTokensIncluded = [...cardTokenSet].every((token) => targetTokenSet.has(token));
+  if (allCardTokensIncluded) {
+    const allowedExtraTokens = new Set(["알려줘", "알려", "소개", "설명", "설명해줘", "대해", "간단히", "자세히"]);
+    const extraTokens = [...targetTokenSet].filter(
+      (token) => !cardTokenSet.has(token) && !allowedExtraTokens.has(token)
+    );
+    return extraTokens.length === 0;
+  }
+
+  const normalizedRawQuestion = rawQuestion.toLowerCase();
+  const isIdentityCard = cardTokenSet.has("꼬옥이") && cardTokenSet.has("누구");
+  const asksIdentity =
+    targetTokenSet.has("꼬옥이") &&
+    includesAny(normalizedRawQuestion, ["누구", "소개", "대해", "알려", "설명"]);
+
+  return isIdentityCard && asksIdentity;
+}
+
 function analyzeAssistantAnswer(text) {
   const lower = text.toLowerCase();
 
@@ -974,7 +1016,15 @@ function tokenize(value) {
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
+    .map(normalizeToken)
     .filter((token) => token.length >= 2);
+}
+
+function normalizeToken(token) {
+  return token.replace(
+    /(이에요|예요|입니다|인가요|인가|이야|에게|한테|에서|으로|까지|부터|처럼|보다|하고|이랑|랑|과|와|야|은|는|이|가|을|를|의|에|도|만|로)$/u,
+    ""
+  );
 }
 
 function countHits(text, keywords) {
