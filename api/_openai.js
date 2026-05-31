@@ -11,7 +11,7 @@ export function requirePost(request, response) {
 }
 
 export function requireOpenAIKey(response) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = process.env.OPENAI_API_KEY?.trim() || process.env.GPT_PLUS?.trim();
 
   if (!apiKey) {
     response.status(500).json({
