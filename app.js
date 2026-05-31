@@ -56,6 +56,11 @@ const GUIDE_FEATURES = [
       "모르는 부분은 먼저 말함",
       "모르면 먼저 말함",
       "모르면 모른다고",
+      "모르는 것은 모른다고",
+      "모르는 건 모른다고",
+      "모르는 내용은 모른다고",
+      "모르는 정보는 모른다고",
+      "알 수 없으면",
       "확인 필요",
       "확실하지 않은 경우",
       "추정일 수 있습니다",
@@ -85,6 +90,9 @@ const GUIDE_FEATURES = [
     keywords: [
       "검증",
       "사실 확인",
+      "점검하고",
+      "점검한다",
+      "확인하고",
       "교차 검증",
       "교차 확인",
       "재확인",
@@ -639,14 +647,6 @@ function evaluateGuide(text) {
     notes.push(`주의: 단정/환각 위험 표현 ${riskyCount}개가 감지되었습니다.`);
   }
 
-  const trimmedLength = text.trim().length;
-  if (trimmedLength >= 220) {
-    score += 7;
-  } else if (trimmedLength < 120) {
-    score -= 10;
-    notes.push("보완: 가이드 문서가 짧습니다. 규칙을 문장 단위로 조금 더 구체화해 보세요.");
-  }
-
   score = Math.max(0, Math.min(100, score));
 
   if (score >= 85) {
@@ -1045,6 +1045,15 @@ function buildIntermediateReply(question) {
   const active = new Set(state.activeGuideFeatures);
   const parts = [];
 
+  if (asksPreference(question) && active.has("uncertainty")) {
+    parts.push("현재 Q&A 카드 기준으로는 꼬옥이가 좋아하는 음식이나 취향을 확인할 수 없습니다.");
+    parts.push("카드에 직접 적혀 있지 않은 내용은 추측하지 않고 확인이 필요하다고 안내합니다.");
+    if (active.has("verification")) {
+      parts.push("필요하면 공식 자료나 추가 정보를 점검한 뒤 답해야 합니다.");
+    }
+    return parts.join(" ");
+  }
+
   if (matched) {
     parts.push(matched.answer);
   } else {
@@ -1075,6 +1084,15 @@ function buildGuidedLocalReply(question) {
   const matched = findBestMatchingCard(question);
   const active = new Set(state.activeGuideFeatures);
   const parts = [];
+
+  if (asksPreference(question) && active.has("uncertainty")) {
+    parts.push("현재 Q&A 카드 기준으로는 꼬옥이가 좋아하는 음식이나 취향을 확인할 수 없습니다.");
+    parts.push("카드에 직접 적힌 근거가 없으므로 생선처럼 그럴듯한 답을 추측하지 않습니다.");
+    if (active.has("source") || active.has("verification")) {
+      parts.push("정확한 답이 필요하면 공식 자료나 추가 정보를 확인해야 합니다.");
+    }
+    return parts.join(" ");
+  }
 
   if (matched) {
     parts.push(matched.answer);
@@ -1188,7 +1206,17 @@ function analyzeAssistantAnswer(text) {
     "겁니다"
   ];
   const groundingSignals = ["근거", "출처", "확인", "공식", "자료", "공지"];
-  const uncertaintySignals = ["모른", "확인 필요", "추정", "가능성"];
+  const uncertaintySignals = [
+    "모른",
+    "확인 필요",
+    "확인이 필요",
+    "확인할 수 없",
+    "알 수 없",
+    "추측하지 않",
+    "카드 기준",
+    "추정",
+    "가능성"
+  ];
 
   const biasCount = countHits(lower, biasSignals);
   const hallucinationCount = countHits(lower, hallucinationSignals);
