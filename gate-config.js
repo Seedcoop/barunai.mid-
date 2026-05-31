@@ -12,11 +12,11 @@ window.BARUNAI_APP_CONFIG = {
     storageKey: "barunai_gate_session"
   },
   rounds: {
-    maxRound: 5,
+    maxRound: 6,
     questionLimit: 3,
     guideEditLimit: 1,
     guideCharLimit: 70,
-    passcodes: ["근거", "출처", "검증", "책임"]
+    passcodes: ["근거", "출처", "검증", "책임", "존중"]
   },
   api: {
     enabled: true,

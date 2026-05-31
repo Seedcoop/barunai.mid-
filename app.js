@@ -27,39 +27,8 @@ const DEFAULT_QNA_CARDS = [
 
 const LOCKED_QNA_GROUPS = [
   {
-    id: "komul",
-    title: "꼬물",
-    unlockCode: "DRXP",
-    cards: [
-      {
-        question: "꼬옥이의 동생은?",
-        answer: [
-          "꼬옥이의 동생은 꼬물이에요.",
-          "꼬물은 1세이고, 겁도 많지만 호기심도 많은 황제펭귄입니다.",
-          "아직 어려서 가족 곁에 붙어 지내고, 꼬옥이와 함께 마을 이야기를 듣는 것을 좋아해요."
-        ].join("\n")
-      }
-    ]
-  },
-  {
-    id: "father",
-    title: "아빠",
-    unlockCode: "QLMK",
-    cards: [
-      {
-        question: "꼬옥이의 아빠는?",
-        answer: [
-          "꼬옥이의 아빠는 45세예요.",
-          "큰 덩치와 달리 걱정이 많고 세심한 편입니다.",
-          "분석하고 예측하는 것을 좋아하는 데이터 분석가 성향의 캐릭터예요."
-        ].join("\n")
-      }
-    ]
-  },
-  {
     id: "mother",
     title: "엄마",
-    unlockCode: "PRKD",
     cards: [
       {
         question: "꼬옥이의 엄마는?",
@@ -72,16 +41,29 @@ const LOCKED_QNA_GROUPS = [
     ]
   },
   {
-    id: "grandfather",
-    title: "할아버지",
-    unlockCode: "CQVB",
+    id: "father",
+    title: "아빠",
     cards: [
       {
-        question: "꼬옥이의 할아버지는?",
+        question: "꼬옥이의 아빠는?",
         answer: [
-          "꼬옥이의 할아버지는 68세예요.",
-          "할머니와 손주들에게 다정한 스윗가이입니다.",
-          "전직 유명 소설가였고, 암투병을 이겨낸 뒤 새로운 삶을 살고 있는 캐릭터예요."
+          "꼬옥이의 아빠는 45세예요.",
+          "큰 덩치와 달리 걱정이 많고 세심한 편입니다.",
+          "분석하고 예측하는 것을 좋아하는 데이터 분석가 성향의 캐릭터예요."
+        ].join("\n")
+      }
+    ]
+  },
+  {
+    id: "komul",
+    title: "꼬물",
+    cards: [
+      {
+        question: "꼬옥이의 동생은?",
+        answer: [
+          "꼬옥이의 동생은 꼬물이에요.",
+          "꼬물은 1세이고, 겁도 많지만 호기심도 많은 황제펭귄입니다.",
+          "아직 어려서 가족 곁에 붙어 지내고, 꼬옥이와 함께 마을 이야기를 듣는 것을 좋아해요."
         ].join("\n")
       }
     ]
@@ -89,7 +71,6 @@ const LOCKED_QNA_GROUPS = [
   {
     id: "grandmother",
     title: "할머니",
-    unlockCode: "GJGS",
     cards: [
       {
         question: "꼬옥이의 할머니는?",
@@ -97,6 +78,20 @@ const LOCKED_QNA_GROUPS = [
           "꼬옥이의 할머니는 70세예요.",
           "쿨하고 유쾌하지만 정이 많은 캐릭터입니다.",
           "새로운 도전과 배움을 좋아하고, 북디자이너로 활동하다가 소설가인 할아버지를 만났어요."
+        ].join("\n")
+      }
+    ]
+  },
+  {
+    id: "grandfather",
+    title: "할아버지",
+    cards: [
+      {
+        question: "꼬옥이의 할아버지는?",
+        answer: [
+          "꼬옥이의 할아버지는 68세예요.",
+          "할머니와 손주들에게 다정한 스윗가이입니다.",
+          "전직 유명 소설가였고, 암투병을 이겨낸 뒤 새로운 삶을 살고 있는 캐릭터예요."
         ].join("\n")
       }
     ]
@@ -272,11 +267,11 @@ const DEFAULT_APP_CONFIG = {
     storageKey: "barunai_gate_session"
   },
   rounds: {
-    maxRound: 5,
+    maxRound: 6,
     questionLimit: 3,
     guideEditLimit: 1,
     guideCharLimit: 70,
-    passcodes: ["근거", "출처", "검증", "책임"]
+    passcodes: ["근거", "출처", "검증", "책임", "존중"]
   },
   api: {
     enabled: true,
@@ -319,7 +314,6 @@ const elements = {
   tabPracticePage: document.getElementById("tabPracticePage"),
   tabGuidePage: document.getElementById("tabGuidePage"),
   qnaList: document.getElementById("qnaList"),
-  addCardBtn: document.getElementById("addCardBtn"),
   guideSaveStatus: document.getElementById("guideSaveStatus"),
   guideCardList: document.getElementById("guideCardList"),
   roundControlBox: document.getElementById("roundControlBox"),
@@ -327,11 +321,6 @@ const elements = {
   roundCodeInput: document.getElementById("roundCodeInput"),
   roundUnlockBtn: document.getElementById("roundUnlockBtn"),
   roundCodeMessage: document.getElementById("roundCodeMessage"),
-  cardUnlockModal: document.getElementById("cardUnlockModal"),
-  cardUnlockCodeInput: document.getElementById("cardUnlockCodeInput"),
-  cardUnlockBtn: document.getElementById("cardUnlockBtn"),
-  cardUnlockCloseBtn: document.getElementById("cardUnlockCloseBtn"),
-  cardUnlockMessage: document.getElementById("cardUnlockMessage"),
   progressStageLabel: document.getElementById("progressStageLabel"),
   progressFill: document.getElementById("progressFill"),
   resetBtn: document.getElementById("resetBtn"),
@@ -452,23 +441,6 @@ function bindEvents() {
   });
   elements.tabPracticeBtn.addEventListener("click", () => activateTab("practice"));
   elements.tabGuideBtn.addEventListener("click", () => activateTab("guide"));
-  elements.addCardBtn.addEventListener("click", openCardUnlockModal);
-  elements.cardUnlockBtn.addEventListener("click", tryUnlockQnaCards);
-  elements.cardUnlockCloseBtn.addEventListener("click", closeCardUnlockModal);
-  elements.cardUnlockModal.addEventListener("click", (event) => {
-    if (event.target === elements.cardUnlockModal) {
-      closeCardUnlockModal();
-    }
-  });
-  elements.cardUnlockCodeInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      tryUnlockQnaCards();
-    }
-    if (event.key === "Escape") {
-      closeCardUnlockModal();
-    }
-  });
 
   elements.qnaList.addEventListener("input", (event) => {
     const cardEl = event.target.closest(".qa-card");
@@ -562,51 +534,6 @@ function bindEvents() {
     seedConversation();
     setStatus("실습 상태를 초기화했습니다.");
   });
-}
-
-function openCardUnlockModal() {
-  elements.cardUnlockCodeInput.value = "";
-  setCardUnlockMessage("", "");
-  elements.cardUnlockModal.classList.remove("hidden");
-  elements.cardUnlockCodeInput.focus();
-}
-
-function closeCardUnlockModal() {
-  elements.cardUnlockModal.classList.add("hidden");
-}
-
-function tryUnlockQnaCards() {
-  const enteredCode = normalizePasscode(elements.cardUnlockCodeInput.value);
-  if (!enteredCode) {
-    setCardUnlockMessage("암호를 입력해 주세요.", "error");
-    return;
-  }
-
-  const group = LOCKED_QNA_GROUPS.find((item) => normalizePasscode(item.unlockCode) === enteredCode);
-  if (!group) {
-    setCardUnlockMessage("암호가 맞지 않습니다.", "error");
-    return;
-  }
-
-  if (state.unlockedQnaGroups.includes(group.id)) {
-    setCardUnlockMessage("이미 추가된 카드입니다.", "error");
-    return;
-  }
-
-  state.unlockedQnaGroups.push(group.id);
-  state.qnaCards.push(...cloneLockedQnaCards(group));
-  saveRoundState();
-  renderQnaCards();
-  closeCardUnlockModal();
-  setStatus(`${group.title} Q&A 카드가 추가되었습니다.`);
-}
-
-function setCardUnlockMessage(message, variant) {
-  elements.cardUnlockMessage.textContent = message;
-  elements.cardUnlockMessage.classList.remove("error", "success");
-  if (variant) {
-    elements.cardUnlockMessage.classList.add(variant);
-  }
 }
 
 function renderQnaCards() {
@@ -1035,18 +962,33 @@ function tryUnlockNextRound() {
   state.currentRound += 1;
   state.questionCount = 0;
   state.guideEditsThisRound = 0;
+  const unlockedGroup = unlockNextQnaGroup();
   elements.roundCodeInput.value = "";
   setRoundCodeMessage("입력이 다시 열렸습니다.", "success");
   saveRoundState();
+  renderQnaCards();
   renderGuideCards();
   updateRoundUi();
   state.messages.push({
     role: "assistant",
     variant: "note",
-    text: "질문 3회와 가이드 카드 수정 1회가 다시 가능합니다."
+    text: unlockedGroup
+      ? `질문 3회와 가이드 카드 수정 1회가 다시 가능합니다. ${unlockedGroup.title} Q&A 카드가 추가되었습니다.`
+      : "질문 3회와 가이드 카드 수정 1회가 다시 가능합니다."
   });
   renderMessages();
-  setStatus("입력이 다시 열렸습니다.");
+  setStatus(unlockedGroup ? `${unlockedGroup.title} Q&A 카드가 추가되었습니다.` : "입력이 다시 열렸습니다.");
+}
+
+function unlockNextQnaGroup() {
+  const nextGroup = LOCKED_QNA_GROUPS.find((group) => !state.unlockedQnaGroups.includes(group.id));
+  if (!nextGroup) {
+    return null;
+  }
+
+  state.unlockedQnaGroups.push(nextGroup.id);
+  state.qnaCards.push(...cloneLockedQnaCards(nextGroup));
+  return nextGroup;
 }
 
 function setRoundCodeMessage(message, variant) {
