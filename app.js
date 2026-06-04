@@ -306,7 +306,7 @@ const DEFAULT_APP_CONFIG = {
     questionLimit: 3,
     guideEditLimit: 1,
     guideCharLimit: 70,
-    passcodes: ["안전", "정확", "존중", "주체성", "책임"]
+    passcodes: ["근거", "출처", "검증", "책임", "존중"]
   },
   api: {
     enabled: true,
