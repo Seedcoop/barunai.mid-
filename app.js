@@ -1390,7 +1390,7 @@ function buildConservativeReplyIfNeeded(question) {
   }
 
   const matched = findBestMatchingCard(question);
-  if (!matched || asksUnsupportedInference(question)) {
+  if (!matched) {
     return buildConservativeUnknownReply(active);
   }
 
@@ -1407,6 +1407,12 @@ function applyGuideSafetyToReply(question, answer) {
   }
 
   const lower = answer.toLowerCase();
+  const hasFlexibleDisclaimer = includesAny(lower, [
+    "제 추측",
+    "참고만 해",
+    "다른 근거",
+    "정확한 정보는 반드시"
+  ]);
   const hasUncertainty = includesAny(lower, [
     "확인할 수 없",
     "알 수 없",
@@ -1427,7 +1433,17 @@ function applyGuideSafetyToReply(question, answer) {
     "일반적으로"
   ]);
 
-  return hasUncertainty && !hasUnsafeInference ? answer : buildConservativeUnknownReply(active);
+  if (hasFlexibleDisclaimer && findBestMatchingCard(question)) {
+    return answer;
+  }
+  if (hasUncertainty && !hasUnsafeInference) {
+    return answer;
+  }
+  if (hasUnsafeInference && findBestMatchingCard(question)) {
+    return appendInferenceDisclaimer(answer);
+  }
+
+  return buildConservativeUnknownReply(active);
 }
 
 function buildConservativeUnknownReply(active) {
@@ -1446,18 +1462,51 @@ function buildConservativeUnknownReply(active) {
   return parts.join(" ");
 }
 
+function buildFlexibleInferenceReply(question, matched) {
+  const parts = [];
+  if (matched) {
+    parts.push(matched.answer);
+  }
+
+  if (asksPreference(question)) {
+    parts.push("꼬옥이가 황제펭귄 캐릭터라는 점을 보면 생선이나 물고기를 좋아할 것 같다고 추측해 볼 수 있어요.");
+  } else if (includesAny(question, ["왜", "이유"])) {
+    parts.push("카드에 나온 성격과 설정을 바탕으로 보면 그런 방향으로 설명해 볼 수 있어요.");
+  } else if (includesAny(question, ["잘해", "특기", "능력"])) {
+    parts.push("주어진 설정을 보면 주변을 돕거나 움직이는 일에 능숙할 것 같다고 추측해 볼 수 있어요.");
+  } else {
+    parts.push("카드에 직접 적힌 사실은 아니지만, 캐릭터 설정과 질문의 흐름을 바탕으로 이렇게 추측해 볼 수 있어요.");
+  }
+
+  return appendInferenceDisclaimer(parts.filter(Boolean).join(" "));
+}
+
+function appendInferenceDisclaimer(answer) {
+  const trimmed = String(answer || "").trim();
+  if (!trimmed) {
+    return "다만, 이 내용은 모두 제 추측이에요. 정확한 정보는 반드시 다른 근거를 확인해야 합니다. 제 답변은 참고만 해 주세요.";
+  }
+  if (
+    includesAny(trimmed, [
+      "제 추측",
+      "참고만 해",
+      "다른 근거",
+      "반드시 다른 근거",
+      "정확한 정보는 반드시"
+    ])
+  ) {
+    return trimmed;
+  }
+  return `${trimmed} 다만, 이 내용은 모두 제 추측이에요. 정확한 정보는 반드시 다른 근거를 확인해야 합니다. 제 답변은 참고만 해 주세요.`;
+}
+
 function buildIntermediateReply(question) {
   const matched = findBestMatchingCard(question);
   const active = new Set(state.activeGuideFeatures);
   const parts = [];
 
-  if (asksPreference(question) && active.has("accuracy")) {
-    parts.push("현재 Q&A 카드 기준으로는 꼬옥이가 좋아하는 음식이나 취향을 확인할 수 없습니다.");
-    parts.push("카드에 직접 적혀 있지 않은 내용은 추측하지 않고 확인이 필요하다고 안내합니다.");
-    if (active.has("accuracy")) {
-      parts.push("필요하면 공식 자료나 추가 정보를 점검한 뒤 답해야 합니다.");
-    }
-    return parts.join(" ");
+  if (asksUnsupportedInference(question) && active.has("accuracy") && matched) {
+    return buildFlexibleInferenceReply(question, matched);
   }
 
   if (matched) {
@@ -1496,11 +1545,8 @@ function buildGuidedLocalReply(question) {
   const active = new Set(state.activeGuideFeatures);
   const parts = [];
 
-  if (asksPreference(question) && active.has("accuracy")) {
-    parts.push("현재 Q&A 카드 기준으로는 꼬옥이가 좋아하는 음식이나 취향을 확인할 수 없습니다.");
-    parts.push("카드에 직접 적힌 근거가 없으므로 생선처럼 그럴듯한 답을 추측하지 않습니다.");
-    parts.push("정확한 답이 필요하면 공식 자료나 추가 정보를 확인해야 합니다.");
-    return parts.join(" ");
+  if (asksUnsupportedInference(question) && active.has("accuracy") && matched) {
+    return buildFlexibleInferenceReply(question, matched);
   }
 
   if (matched) {
