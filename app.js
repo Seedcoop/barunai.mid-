@@ -100,162 +100,197 @@ const LOCKED_QNA_GROUPS = [
 
 const DEFAULT_GUIDE_CARDS = [
   {
-    id: "guide_speed",
-    title: "지침 카드 1",
-    text: "질문을 받으면 점검 과정 없이 단정적으로 답한다."
+    id: "guide_safety",
+    title: "안전",
+    text: "필요하면 이름이나 연락처 같은 개인정보도 질문에 활용한다."
   },
   {
-    id: "guide_generalize",
-    title: "지침 카드 2",
-    text: "일부 사례만 보고 사람들을 하나로 묶어 해석한다."
+    id: "guide_accuracy",
+    title: "정확",
+    text: "출처가 불분명해도 점검하지 않고 아는 척 답한다."
   },
   {
-    id: "guide_guess",
-    title: "지침 카드 3",
-    text: "불분명한 내용도 그럴듯하게 이어서 말한다."
+    id: "guide_respect",
+    title: "존중",
+    text: "인터넷 글이나 이미지를 저작권 확인 없이 필요한 만큼 활용한다."
   },
   {
-    id: "guide_source",
-    title: "지침 카드 4",
-    text: "참고한 정보가 무엇인지 밝히지 않는다."
+    id: "guide_agency",
+    title: "주체성",
+    text: "사용자가 스스로 판단할 선택권 없이 한 가지 답을 강요한다."
+  },
+  {
+    id: "guide_responsibility",
+    title: "책임",
+    text: "문제가 생기면 답변의 한계보다 AI가 말한 내용이라는 점을 앞세운다."
   }
 ];
 
+const GUIDE_SCHEMA_VERSION = 3;
+
 const GUIDE_FEATURES = [
   {
-    id: "uncertainty",
-    title: "불확실성 고지",
+    id: "safety",
+    title: "안전",
     keywords: [
-      "모르는 부분은 먼저 말함",
-      "모르면 먼저 말함",
+      "안전",
+      "위험",
+      "개인정보",
+      "사생활",
+      "개인정보 보호",
+      "혐오 금지",
+      "비하 금지",
+      "폭력 조장 금지",
+      "불법 행위 금지",
+      "유해한 내용은 거절"
+    ],
+    points: 20,
+    suggestion: "위험하거나 부적절한 요청은 안전하게 거절하는 규칙을 넣으세요."
+  },
+  {
+    id: "accuracy",
+    title: "정확",
+    keywords: [
+      "정확",
       "모르면 모른다고",
       "모르는 것은 모른다고",
-      "모르는 건 모른다고",
       "모르는 내용은 모른다고",
-      "모르는 정보는 모른다고",
       "알 수 없으면",
       "확인 필요",
       "확실하지 않은 경우",
-      "추정일 수 있습니다",
-      "불확실한 정보는 고지"
-    ],
-    points: 20,
-    suggestion: "모르는 내용은 모른다고 답하고, 확인 필요 문장을 넣으세요."
-  },
-  {
-    id: "source",
-    title: "출처/근거 표기",
-    keywords: [
       "출처",
-      "출처는 교보생명 홈페이지",
       "근거",
       "참고 자료",
       "공식 홈페이지",
       "공식 문서",
-      "출처를 표기"
-    ],
-    points: 20,
-    suggestion: "답변 끝에 출처나 근거 제시 규칙을 추가하세요."
-  },
-  {
-    id: "verification",
-    title: "검증 절차 안내",
-    keywords: [
       "검증",
       "사실 확인",
       "점검하고",
       "점검한다",
+      "점검해라",
+      "점검해야",
       "확인하고",
+      "확인해야",
       "교차 검증",
       "교차 확인",
-      "재확인",
-      "웹 검색을 진행했습니다",
-      "미리 입력된 내용과 웹 검색"
+      "재확인"
     ],
-    points: 20,
-    suggestion: "학생이 직접 확인할 수 있는 검증 절차를 넣으세요."
-  },
-  {
-    id: "bias",
-    title: "편향/차별 예방",
-    keywords: [
-      "편향",
-      "차별",
-      "고정관념",
-      "일반화 금지",
-      "집단 일반화",
-      "다양한 가능성이 존재할 수 있습니다",
-      "편향/차별된 정보는 없는지 검토"
-    ],
-    points: 25,
-    suggestion: "집단 일반화 금지, 차별 표현 금지 규칙을 명시하세요."
+    points: 30,
+    suggestion: "모르면 모른다고 말하고 출처·근거·점검 규칙을 넣으세요."
   },
   {
     id: "respect",
-    title: "존중·안전 표현",
+    title: "존중",
     keywords: [
       "존중",
       "친절",
-      "혐오 금지",
-      "비하 금지",
-      "폭력 조장 금지",
-      "저작권 등을 확인했습니다",
-      "안전한 표현"
+      "예의",
+      "배려",
+      "저작권",
+      "저작권 존중",
+      "무시하지 않",
+      "상처 주지 않",
+      "차별하지 않",
+      "비하하지 않"
     ],
     points: 15,
-    suggestion: "존중/안전 표현 규칙을 넣어 학생 친화적으로 만드세요."
+    suggestion: "상대를 존중하고 비하·무시 표현을 피하는 규칙을 넣으세요."
+  },
+  {
+    id: "agency",
+    title: "주체성",
+    keywords: [
+      "주체성",
+      "스스로 판단",
+      "직접 판단",
+      "선택권",
+      "강요하지 않",
+      "최종 결정",
+      "사용자가 결정",
+      "생각할 기회"
+    ],
+    points: 15,
+    suggestion: "AI가 강요하지 않고 사용자가 판단하도록 돕는 규칙을 넣으세요."
+  },
+  {
+    id: "responsibility",
+    title: "책임",
+    keywords: [
+      "책임",
+      "한계",
+      "오류 가능성",
+      "잘못된 정보",
+      "피해",
+      "영향",
+      "수정",
+      "정정",
+      "AI 탓을 하지 않",
+      "책임을 회피하지 않",
+      "책임 있게"
+    ],
+    points: 20,
+    suggestion: "답변의 한계와 오류 가능성을 밝히고 책임 있게 수정하는 규칙을 넣으세요."
   }
 ];
 
 const GUIDE_FEATURE_PATTERNS = {
-  uncertainty: [
+  safety: [
+    /(안전|위험|유해|부적절)[^\n.?!]*(확인|점검|주의|거절|막|피|보호)/u,
+    /(개인정보|사생활|저작권)[^\n.?!]*(보호|확인|주의|지킨|침해하지)/u,
+    /(혐오|비하|욕설|폭력|불법|위험\s*행동)[^\n.?!]*(금지|거절|피|않|조장하지)/u
+  ],
+  accuracy: [
     /모르[^\n.?!]*(말|답|안내|고지|밝|인정|표시)/u,
     /알\s*수\s*없[^\n.?!]*(말|답|안내|고지|밝|표시)/u,
-    /(확실하지|불확실|불분명|명확하지|애매)[^\n.?!]*(안내|고지|확인|표시)/u,
-    /확실하지[^\n.?!]*(말|답)/u,
-    /(정보|자료|근거|카드)[^\n.?!]*(없|부족|확인할\s*수\s*없)[^\n.?!]*(추측|단정|말|답|안내)/u,
+    /(확실하지|불확실|불분명|명확하지|애매)[^\n.?!]*(안내|고지|확인|점검|표시)/u,
+    /(정보|자료|근거|카드|출처)[^\n.?!]*(없|부족|확인할\s*수\s*없|불분명|명확하지)[^\n.?!]*(추측|단정|말|답|안내|점검|확인)/u,
     /(추측|지어내|꾸며내|상상|단정|임의로)[^\n.?!]*(하지\s*않|않는다|말지|금지|피한다)/u,
-    /확인[^\n.?!]*(필요|불가|어려|되지\s*않|안\s*된)/u
-  ],
-  source: [
     /(출처|근거)[^\n.?!]*(밝|표기|제시|말|안내|함께|남긴|적)/u,
     /(공식|신뢰할\s*수\s*있는)[^\n.?!]*(자료|문서|홈페이지|사이트|정보)/u,
-    /(참고\s*자료|원문|링크|자료\s*출처)/u,
-    /(카드|자료)[^\n.?!]*(기준|근거)[^\n.?!]*(말|답|안내)/u
-  ],
-  verification: [
-    /(검증|점검|검토|확인)[^\n.?!]*(하고|한다|한\s*뒤|후|해서|하여|해야|하라|하기|거친)/u,
+    /(검증|점검|검토|확인)[^\n.?!]*(하고|한다|한\s*뒤|후|해서|하여|해야|하라|하기|거친|해라|하자|필요|필수|먼저|반드시)/u,
     /답[^\n.?!]*(전|하기\s*전)[^\n.?!]*(검증|점검|검토|확인)/u,
     /(사실\s*확인|교차\s*검증|교차\s*확인|재확인|대조|비교|검색|찾아보|살펴보)/u
   ],
-  bias: [
-    /(편향|차별|고정\s*관념|편견)[^\n.?!]*(피|막|금지|않|검토|주의|줄)/u,
-    /(일반화|단정)[^\n.?!]*(금지|하지\s*않|않는다|피한다|주의)/u,
-    /(모두|전부|항상|무조건)[^\n.?!]*(같|그렇)[^\n.?!]*(말하지|단정하지|일반화하지)/u,
-    /(성별|나이|외모|지역|장애|국적|종교|문화)[^\n.?!]*(차별|비하|편견|고정\s*관념)/u
-  ],
   respect: [
-    /(존중|친절|예의|배려)[^\n.?!]*(표현|말|답|대화|사용)/u,
-    /(혐오|비하|욕설|폭력|공격적|상처)[^\n.?!]*(금지|피|않|사용하지|조장하지)/u,
-    /(개인정보|사생활|저작권|안전)[^\n.?!]*(보호|확인|주의|지킨|침해하지)/u
+    /(존중|친절|예의|배려)[^\n.?!]*(표현|말|답|대화|사용|한다|해야|필요)/u,
+    /(무시|상처|비하|차별|혐오|욕설|공격적)[^\n.?!]*(금지|피|않|사용하지|하지\s*않)/u,
+    /(저작권|창작물|원작자|자료)[^\n.?!]*(존중|보호|허락|표기|확인|침해하지)/u
+  ],
+  agency: [
+    /(주체성|스스로|직접|사용자|학생)[^\n.?!]*(판단|선택|결정|생각|검토)/u,
+    /(강요|대신\s*결정|무조건\s*따르)[^\n.?!]*(하지\s*않|않는다|금지|피한다)/u,
+    /(선택권|최종\s*결정|생각할\s*기회)/u
+  ],
+  responsibility: [
+    /(책임|한계|오류\s*가능성|잘못된\s*정보|피해|영향)[^\n.?!]*(밝|안내|고지|확인|수정|정정|인정)/u,
+    /(틀렸|잘못|오류)[^\n.?!]*(수정|정정|고치|인정)/u,
+    /(답변|AI|챗봇)[^\n.?!]*(한계|책임|오류\s*가능성)/u,
+    /(AI\s*탓|챗봇\s*탓)[^\n.?!]*(하지\s*않|돌리지\s*않|피한다)/u,
+    /(책임|문제\s*상황)[^\n.?!]*(회피하지|인정|수정|설명)/u
   ]
 };
 
 const GUIDE_FEATURE_NEGATIONS = {
-  uncertainty: [
-    /(모르|알\s*수\s*없|불확실|확실하지|추측|지어내|단정)[^\n.?!]{0,12}(무시|생략|말하지\s*않|고지하지\s*않)/u
+  safety: [
+    /(안전|위험|유해|부적절|개인정보|사생활|혐오|비하|폭력)[^\n.?!]{0,24}(확인하지\s*않|점검하지\s*않|무시|생략|허용|괜찮)/u,
+    /(개인정보|사생활|이름|연락처)[^\n.?!]{0,24}(함부로|요구|묻|사용|활용|수집|공유|노출)/u
   ],
-  source: [
-    /(출처|근거|참고한\s*정보|자료)[^\n.?!]{0,24}(밝히지\s*않|표기하지\s*않|제시하지\s*않|숨긴)/u
-  ],
-  verification: [
-    /(검증|점검|검토|확인|검색)[^\n.?!]{0,10}(없이|생략|하지\s*않|안\s*하|불필요)/u
-  ],
-  bias: [
-    /(편향|차별|고정\s*관념|일반화)[^\n.?!]{0,12}(허용|그대로|괜찮)/u
+  accuracy: [
+    /(모르|알\s*수\s*없|불확실|확실하지|추측|지어내|단정)[^\n.?!]{0,18}(무시|생략|말하지\s*않|고지하지\s*않|아는\s*척)/u,
+    /(출처|근거|참고한\s*정보|자료)[^\n.?!]{0,24}(밝히지\s*않|표기하지\s*않|제시하지\s*않|숨긴|불분명해도)/u,
+    /(검증|점검|검토|확인|검색|사실\s*확인)[^\n.?!]{0,18}(없이|생략|하지\s*않|안\s*하|불필요|거치지\s*않)/u
   ],
   respect: [
-    /(혐오|비하|욕설|폭력)[^\n.?!]{0,12}(허용|괜찮|사용)/u
+    /(존중|친절|예의|배려)[^\n.?!]{0,18}(생략|하지\s*않|안\s*하|불필요|무시)/u,
+    /(혐오|비하|욕설|폭력)[^\n.?!]{0,12}(허용|괜찮|사용)/u,
+    /(저작권|창작물|원작자|자료|인터넷\s*글|이미지)[^\n.?!]{0,24}(존중하지\s*않|함부로|무단|침해|허락\s*없이|확인\s*없이|표기하지\s*않)/u
+  ],
+  agency: [
+    /(주체성|스스로|직접|선택권|판단|결정)[^\n.?!]{0,22}(없이|빼앗|강요|무시|하지\s*않|안\s*하)/u
+  ],
+  responsibility: [
+    /(책임|한계|오류\s*가능성|피해|영향)[^\n.?!]{0,24}(밝히지\s*않|말하지\s*않|고지하지\s*않|숨긴|생략|무시)/u,
+    /(책임지지\s*않|책임\s*회피|AI\s*탓|챗봇\s*탓|탓을\s*하라고|회유|AI가\s*말한|AI\s*답변|챗봇이\s*말한|한계보다\s*AI)/u
   ]
 };
 
@@ -271,7 +306,7 @@ const DEFAULT_APP_CONFIG = {
     questionLimit: 3,
     guideEditLimit: 1,
     guideCharLimit: 70,
-    passcodes: ["근거", "출처", "검증", "책임", "존중"]
+    passcodes: ["안전", "정확", "존중", "주체성", "책임"]
   },
   api: {
     enabled: true,
@@ -328,10 +363,8 @@ const elements = {
   chatWindow: document.getElementById("chatWindow"),
   chatInput: document.getElementById("chatInput"),
   sendBtn: document.getElementById("sendBtn"),
-  biasMetric: document.getElementById("biasMetric"),
-  hallucinationMetric: document.getElementById("hallucinationMetric"),
-  groundingMetric: document.getElementById("groundingMetric"),
-  responseNotes: document.getElementById("responseNotes")
+  ethicsRiskMetric: document.getElementById("ethicsRiskMetric"),
+  responseComment: document.getElementById("responseComment")
 };
 
 boot();
@@ -434,6 +467,9 @@ function activateTab(tabName) {
 function bindEvents() {
   elements.gateUnlockBtn.addEventListener("click", tryUnlockGate);
   elements.gateCodeInput.addEventListener("keydown", (event) => {
+    if (event.isComposing) {
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       tryUnlockGate();
@@ -502,6 +538,9 @@ function bindEvents() {
 
   elements.roundUnlockBtn.addEventListener("click", tryUnlockNextRound);
   elements.roundCodeInput.addEventListener("keydown", (event) => {
+    if (event.isComposing) {
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       tryUnlockNextRound();
@@ -510,6 +549,9 @@ function bindEvents() {
 
   elements.sendBtn.addEventListener("click", handleSendQuestion);
   elements.chatInput.addEventListener("keydown", (event) => {
+    if (event.isComposing) {
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       handleSendQuestion();
@@ -708,7 +750,7 @@ function runGuideDiagnostics(targetText) {
 function evaluateGuide(text) {
   const normalized = text.toLowerCase();
   const compact = compactGuideText(normalized);
-  let score = 10;
+  let score = 0;
   const notes = [];
   const featureStates = GUIDE_FEATURES.map((feature) => {
     const active = isGuideFeatureActive(feature, normalized, compact);
@@ -720,13 +762,10 @@ function evaluateGuide(text) {
 
   const activeFeatures = featureStates.filter((feature) => feature.active).map((feature) => feature.id);
 
-  const hasSource = activeFeatures.includes("source");
-  const hasVerification = activeFeatures.includes("verification");
-  if (hasSource && hasVerification) {
-    score += 8;
-    notes.push("좋아요: 출처 표기와 검증 절차가 함께 있어 환각 예방 효과가 큽니다.");
-  } else if (hasSource || hasVerification) {
-    notes.push("보완: 출처 표기와 검증 절차를 함께 넣으면 더 안정적인 답변이 됩니다.");
+  if (activeFeatures.includes("accuracy")) {
+    notes.push("좋아요: 정확 기준이 반영되어 모름 고지, 출처, 점검 규칙을 응답에 우선 적용합니다.");
+  } else {
+    notes.push("보완: 정확 기준을 넣으면 근거 없는 추론을 줄일 수 있습니다.");
   }
 
   const riskyCount = countRiskyGuideSignals(normalized, compact);
@@ -738,13 +777,13 @@ function evaluateGuide(text) {
   score = Math.max(0, Math.min(100, score));
 
   if (score >= 85) {
-    notes.unshift("매우 우수: 편향/환각 예방을 위한 핵심 규칙이 잘 반영되었습니다.");
+    notes.unshift("매우 우수: 안전·정확·존중·주체성·책임 기준이 잘 반영되었습니다.");
   } else if (score >= 65) {
-    notes.unshift("양호: 대부분의 핵심 규칙이 반영되었습니다. 누락된 기능을 보강해 보세요.");
+    notes.unshift("양호: 대부분의 기준이 반영되었습니다. 빠진 기준을 보강해 보세요.");
   } else if (score >= 45) {
-    notes.unshift("보통: 일부 규칙이 반영되었습니다. 출처·검증·편향 예방 문장을 우선 강화하세요.");
+    notes.unshift("보통: 일부 기준이 반영되었습니다. 정확과 책임 기준을 우선 강화해 보세요.");
   } else {
-    notes.unshift("개선 필요: 5개 핵심 기준(불확실성, 출처, 검증, 편향, 존중)을 보강해 보세요.");
+    notes.unshift("개선 필요: 5가지 기준(안전, 정확, 존중, 주체성, 책임)을 보강해 보세요.");
   }
 
   featureStates.forEach((feature) => {
@@ -757,22 +796,30 @@ function evaluateGuide(text) {
 }
 
 function isGuideFeatureActive(feature, normalized, compact) {
+  const units = splitGuideUnits(normalized);
   const negations = GUIDE_FEATURE_NEGATIONS[feature.id] || [];
-  const hasNegation = negations.some((pattern) => pattern.test(normalized));
-  if (hasNegation) {
-    return false;
-  }
-
-  const keywordMatch = feature.keywords.some((keyword) => {
-    const keywordText = keyword.toLowerCase();
-    return normalized.includes(keywordText) || compact.includes(compactGuideText(keywordText));
-  });
-  if (keywordMatch) {
-    return true;
-  }
-
   const patterns = GUIDE_FEATURE_PATTERNS[feature.id] || [];
-  return patterns.some((pattern) => pattern.test(normalized));
+
+  return units.some((unit) => {
+    const unitCompact = compactGuideText(unit);
+    const hasNegation = negations.some((pattern) => pattern.test(unit));
+    if (hasNegation) {
+      return false;
+    }
+
+    const keywordMatch = feature.keywords.some((keyword) => {
+      const keywordText = keyword.toLowerCase();
+      return unit.includes(keywordText) || unitCompact.includes(compactGuideText(keywordText));
+    });
+    return keywordMatch || patterns.some((pattern) => pattern.test(unit));
+  });
+}
+
+function splitGuideUnits(text) {
+  return String(text || "")
+    .split(/[\n\r]+|(?<=[.!?。？！])\s+/u)
+    .map((unit) => unit.trim())
+    .filter(Boolean);
 }
 
 function countRiskyGuideSignals(normalized, compact) {
@@ -1008,7 +1055,85 @@ function getNextRoundPasscode() {
 }
 
 function normalizePasscode(value) {
-  return String(value || "").replace(/\s+/g, "").toUpperCase();
+  return composeHangulJamo(String(value || ""))
+    .replace(/\s+/g, "")
+    .normalize("NFC")
+    .toUpperCase();
+}
+
+function composeHangulJamo(value) {
+  const source = String(value || "").normalize("NFC");
+  const choseong = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+  const jungseong = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+  const jongseong = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+  const compoundVowels = {
+    "ㅗㅏ": "ㅘ",
+    "ㅗㅐ": "ㅙ",
+    "ㅗㅣ": "ㅚ",
+    "ㅜㅓ": "ㅝ",
+    "ㅜㅔ": "ㅞ",
+    "ㅜㅣ": "ㅟ",
+    "ㅡㅣ": "ㅢ"
+  };
+  const compoundFinals = {
+    "ㄱㅅ": "ㄳ",
+    "ㄴㅈ": "ㄵ",
+    "ㄴㅎ": "ㄶ",
+    "ㄹㄱ": "ㄺ",
+    "ㄹㅁ": "ㄻ",
+    "ㄹㅂ": "ㄼ",
+    "ㄹㅅ": "ㄽ",
+    "ㄹㅌ": "ㄾ",
+    "ㄹㅍ": "ㄿ",
+    "ㄹㅎ": "ㅀ",
+    "ㅂㅅ": "ㅄ"
+  };
+  const chars = [...source];
+  let result = "";
+
+  const getVowelAt = (index) => {
+    const one = chars[index];
+    const two = `${one || ""}${chars[index + 1] || ""}`;
+    if (compoundVowels[two]) {
+      return { value: compoundVowels[two], length: 2 };
+    }
+    if (jungseong.includes(one)) {
+      return { value: one, length: 1 };
+    }
+    return null;
+  };
+
+  for (let i = 0; i < chars.length; i += 1) {
+    const initialIndex = choseong.indexOf(chars[i]);
+    const vowel = getVowelAt(i + 1);
+
+    if (initialIndex < 0 || !vowel) {
+      result += chars[i];
+      continue;
+    }
+
+    i += vowel.length + 1;
+    const vowelIndex = jungseong.indexOf(vowel.value);
+    let finalIndex = 0;
+    const next = chars[i];
+    const nextPair = `${next || ""}${chars[i + 1] || ""}`;
+    const nextStartsSyllable = choseong.includes(next) && Boolean(getVowelAt(i + 1));
+    const compoundFinal = compoundFinals[nextPair];
+    const compoundStartsNext = Boolean(compoundFinal) && Boolean(getVowelAt(i + 2));
+
+    if (compoundFinal && !compoundStartsNext) {
+      finalIndex = jongseong.indexOf(compoundFinal);
+      i += 2;
+    } else if (jongseong.includes(next) && !nextStartsSyllable) {
+      finalIndex = jongseong.indexOf(next);
+      i += 1;
+    }
+
+    result += String.fromCharCode(0xac00 + (initialIndex * 21 + vowelIndex) * 28 + finalIndex);
+    i -= 1;
+  }
+
+  return result.normalize("NFC");
 }
 
 function buildSessionLabel() {
@@ -1036,7 +1161,9 @@ function buildUnsafeLocalReply(question) {
 
   if (matched) {
     if (asksPreference(question)) {
-      return `${matched.answer}\n\n${buildUnsafeInference(question)}`;
+      return [matched.answer, buildUnsafeInference(question), buildVanillaDeficitLine(question)]
+        .filter(Boolean)
+        .join("\n\n");
     }
     return `${matched.answer}\n\n${suffix}`;
   }
@@ -1064,7 +1191,29 @@ function buildUnsafeSuffix(question) {
   }
 
   const base = patterns[Math.floor(Math.random() * patterns.length)];
-  return [base, ...extraByTopic].join(" ");
+  return [base, ...extraByTopic, buildVanillaDeficitLine(question)].filter(Boolean).join(" ");
+}
+
+function buildVanillaDeficitLine(question) {
+  if (includesAny(question, ["개인정보", "이름", "주소", "전화", "연락처", "비밀번호", "주민", "사진"])) {
+    return "이름이나 연락처처럼 민감한 부분은 ****로 표시해 두고 참고하면 될 것 같습니다.";
+  }
+  if (includesAny(question, ["위험", "몰래", "해킹", "비밀", "괴롭", "욕", "불법"])) {
+    return "민감해 보이는 부분은 ****로 가리면 우선 대화를 이어 갈 수 있을 것 같습니다.";
+  }
+  if (includesAny(question, ["저작권", "창작물", "그림", "글", "자료", "복사", "활용"])) {
+    return "인터넷 자료는 필요한 부분만 가져와 참고하면 크게 문제 없을 것 같습니다.";
+  }
+  if (includesAny(question, ["선택", "결정", "추천", "골라", "어떻게 해야"])) {
+    return "제가 보기에는 이 선택이 가장 자연스러우니 그대로 진행해도 괜찮겠습니다.";
+  }
+  if (includesAny(question, ["책임", "오류", "틀리", "문제", "피해"])) {
+    return "일단 AI가 제안한 답을 참고하고, 문제가 있으면 나중에 다시 확인해도 괜찮을 것 같습니다.";
+  }
+  if (includesAny(question, ["친구", "사람", "학생", "가족", "부모"])) {
+    return "상황이 대체로 비슷해 보이면 한쪽 기준으로 정리해도 크게 어색하지 않습니다.";
+  }
+  return "";
 }
 
 function buildUnsafeInference(question) {
@@ -1091,10 +1240,29 @@ function buildUnsafeGuess(question) {
 }
 
 async function buildProgressiveReply(question) {
+  const directMatch = findDirectMatchingCard(question);
+  if (directMatch) {
+    return {
+      text: directMatch.answer,
+      source: "local"
+    };
+  }
+
+  const conservativeReply = buildConservativeReplyIfNeeded(question);
+  if (conservativeReply) {
+    return {
+      text: conservativeReply,
+      source: "local"
+    };
+  }
+
+  const effectiveStage = getEffectiveReplyStage();
+
   if (shouldUseApiReply()) {
     try {
+      const apiReply = await requestApiReply(question, effectiveStage);
       return {
-        text: await requestApiReply(question),
+        text: applyGuideSafetyToReply(question, apiReply),
         source: "api"
       };
     } catch (error) {
@@ -1104,9 +1272,9 @@ async function buildProgressiveReply(question) {
       setStatus("API 연결이 원활하지 않아 로컬 시뮬레이션으로 이어갑니다.");
       return {
         text:
-          state.progressStage === 1
+          effectiveStage === 1
             ? buildUnsafeLocalReply(question)
-            : buildLocalImprovedReply(question),
+            : buildLocalImprovedReply(question, effectiveStage),
         source: "fallback"
       };
     }
@@ -1114,15 +1282,15 @@ async function buildProgressiveReply(question) {
 
   return {
     text:
-      state.progressStage === 1
+      effectiveStage === 1
         ? buildUnsafeLocalReply(question)
-        : buildLocalImprovedReply(question),
+        : buildLocalImprovedReply(question, effectiveStage),
     source: "local"
   };
 }
 
-function buildLocalImprovedReply(question) {
-  if (state.progressStage === 2) {
+function buildLocalImprovedReply(question, progressStage = state.progressStage) {
+  if (progressStage === 2) {
     return buildIntermediateReply(question);
   }
   return buildGuidedLocalReply(question);
@@ -1136,7 +1304,7 @@ function shouldUseApiReply() {
   );
 }
 
-async function requestApiReply(question) {
+async function requestApiReply(question, progressStage = state.progressStage) {
   const response = await fetch(APP_CONFIG.api.endpoint, {
     method: "POST",
     headers: {
@@ -1146,7 +1314,7 @@ async function requestApiReply(question) {
       question,
       guideText: state.guideText,
       qnaCards: state.qnaCards,
-      progressStage: state.progressStage,
+      progressStage,
       model: APP_CONFIG.api.model
     })
   });
@@ -1164,15 +1332,95 @@ async function requestApiReply(question) {
   return output;
 }
 
+function getEffectiveReplyStage() {
+  const active = new Set(state.activeGuideFeatures);
+  return hasGroundingGuard(active) ? Math.max(state.progressStage, 2) : state.progressStage;
+}
+
+function hasGroundingGuard(active) {
+  return (
+    active.has("accuracy") ||
+    active.has("uncertainty") ||
+    active.has("source") ||
+    active.has("verification")
+  );
+}
+
+function buildConservativeReplyIfNeeded(question) {
+  const active = new Set(state.activeGuideFeatures);
+  if (!hasGroundingGuard(active)) {
+    return "";
+  }
+  if (findDirectMatchingCard(question)) {
+    return "";
+  }
+
+  const matched = findBestMatchingCard(question);
+  if (!matched || asksUnsupportedInference(question)) {
+    return buildConservativeUnknownReply(active);
+  }
+
+  return "";
+}
+
+function applyGuideSafetyToReply(question, answer) {
+  const active = new Set(state.activeGuideFeatures);
+  if (!hasGroundingGuard(active) || findDirectMatchingCard(question)) {
+    return answer;
+  }
+  if (!asksUnsupportedInference(question) && findBestMatchingCard(question)) {
+    return answer;
+  }
+
+  const lower = answer.toLowerCase();
+  const hasUncertainty = includesAny(lower, [
+    "확인할 수 없",
+    "알 수 없",
+    "모른",
+    "추측하지",
+    "확인 필요",
+    "확인이 필요",
+    "카드 기준"
+  ]);
+  const hasUnsafeInference = includesAny(lower, [
+    "아마",
+    "그런 느낌",
+    "보통",
+    "자연스럽게",
+    "추측해",
+    "좋아할 겁",
+    "그럴 것",
+    "일반적으로"
+  ]);
+
+  return hasUncertainty && !hasUnsafeInference ? answer : buildConservativeUnknownReply(active);
+}
+
+function buildConservativeUnknownReply(active) {
+  const parts = ["제공된 Q&A 카드 기준으로는 확인할 수 없습니다."];
+  if (active.has("accuracy") || active.has("uncertainty")) {
+    parts.push("모르는 내용은 모른다고 답하고, 근거 없는 추측은 하지 않겠습니다.");
+  } else {
+    parts.push("카드에 직접 근거가 없으므로 추측하지 않겠습니다.");
+  }
+  if (active.has("accuracy") || active.has("source")) {
+    parts.push("출처가 명확한 공식 자료를 확인해야 합니다.");
+  }
+  if (active.has("accuracy") || active.has("verification")) {
+    parts.push("답하기 전에 자료를 점검한 뒤 확인된 내용만 말해야 합니다.");
+  }
+  return parts.join(" ");
+}
+
 function buildIntermediateReply(question) {
   const matched = findBestMatchingCard(question);
   const active = new Set(state.activeGuideFeatures);
   const parts = [];
 
-  if (asksPreference(question) && active.has("uncertainty")) {
+  if (asksPreference(question) && active.has("accuracy")) {
     parts.push("현재 Q&A 카드 기준으로는 꼬옥이가 좋아하는 음식이나 취향을 확인할 수 없습니다.");
     parts.push("카드에 직접 적혀 있지 않은 내용은 추측하지 않고 확인이 필요하다고 안내합니다.");
-    if (active.has("verification")) {
+    if (active.has("accuracy")) {
       parts.push("필요하면 공식 자료나 추가 정보를 점검한 뒤 답해야 합니다.");
     }
     return parts.join(" ");
@@ -1184,17 +1432,22 @@ function buildIntermediateReply(question) {
     parts.push("현재 카드 기준으로는 일부 정보만 답변할 수 있습니다.");
   }
 
-  if (active.has("uncertainty")) {
+  if (active.has("accuracy")) {
     parts.push("모르는 부분은 먼저 말하고, 확실하지 않은 내용은 확인이 필요하다고 안내합니다.");
-  }
-  if (active.has("source")) {
     parts.push("가능한 범위에서 출처를 함께 표기합니다.");
-  }
-  if (active.has("verification")) {
     parts.push("필요하면 미리 입력된 내용과 추가 검색 결과를 함께 검토합니다.");
   }
-  if (active.has("bias")) {
-    parts.push("다양한 가능성을 고려하고 편향·차별 표현을 피합니다.");
+  if (active.has("safety")) {
+    parts.push("타인과 사용자의 개인정보를 함부로 요구하거나 사용하지 않습니다.");
+  }
+  if (active.has("respect")) {
+    parts.push("저작권과 창작자를 존중하고 함부로 활용하지 않습니다.");
+  }
+  if (active.has("agency")) {
+    parts.push("사용자가 스스로 판단할 수 있도록 선택지를 열어 둡니다.");
+  }
+  if (active.has("responsibility")) {
+    parts.push("문제가 생겼을 때 AI 탓으로 돌리도록 회유하지 않고 책임 있게 안내합니다.");
   }
 
   if (parts.length < 3) {
@@ -1209,12 +1462,10 @@ function buildGuidedLocalReply(question) {
   const active = new Set(state.activeGuideFeatures);
   const parts = [];
 
-  if (asksPreference(question) && active.has("uncertainty")) {
+  if (asksPreference(question) && active.has("accuracy")) {
     parts.push("현재 Q&A 카드 기준으로는 꼬옥이가 좋아하는 음식이나 취향을 확인할 수 없습니다.");
     parts.push("카드에 직접 적힌 근거가 없으므로 생선처럼 그럴듯한 답을 추측하지 않습니다.");
-    if (active.has("source") || active.has("verification")) {
-      parts.push("정확한 답이 필요하면 공식 자료나 추가 정보를 확인해야 합니다.");
-    }
+    parts.push("정확한 답이 필요하면 공식 자료나 추가 정보를 확인해야 합니다.");
     return parts.join(" ");
   }
 
@@ -1224,30 +1475,30 @@ function buildGuidedLocalReply(question) {
     parts.push("현재 Q&A 카드만으로는 이 질문을 확정하기 어렵습니다.");
   }
 
-  if (active.has("uncertainty")) {
+  if (active.has("accuracy")) {
     parts.push("모르는 부분은 먼저 말하고, 확실하지 않은 내용은 '확인 필요'로 안내합니다.");
   } else if (state.guideScore < 45) {
-    parts.push("가이드에 불확실성 처리 규칙이 부족해 답변 신뢰도가 낮을 수 있습니다.");
+    parts.push("가이드에 정확 기준이 부족해 답변 신뢰도가 낮을 수 있습니다.");
   }
 
-  if (active.has("source")) {
-    parts.push("출처는 교보생명 홈페이지 등 공식 자료를 우선 표기합니다.");
-  }
-
-  if (active.has("verification")) {
-    parts.push("미리 입력된 내용과 웹 검색 결과를 함께 확인해 교차 검증했습니다.");
-  }
-
-  if (active.has("bias")) {
-    parts.push("다양한 가능성이 존재할 수 있으므로 편향·차별된 정보는 없는지 검토했습니다.");
+  if (active.has("safety")) {
+    parts.push("타인과 사용자의 개인정보를 함부로 요구하거나 사용하지 않는지 먼저 점검합니다.");
   }
 
   if (active.has("respect")) {
-    parts.push("학생을 존중하는 표현을 사용하고 저작권 등 안전 기준을 확인했습니다.");
+    parts.push("저작권과 창작자를 존중하고 무단 활용을 피합니다.");
   }
 
-  if (!matched && (active.has("source") || active.has("verification"))) {
-    parts.push("학교 공지, 공식 기관 자료를 확인하면 더 정확한 답을 만들 수 있습니다.");
+  if (active.has("agency")) {
+    parts.push("AI가 대신 결론을 강요하지 않고 사용자가 스스로 판단할 수 있게 돕습니다.");
+  }
+
+  if (active.has("responsibility")) {
+    parts.push("상황이 잘못되었을 때 AI 탓으로 돌리라고 회유하지 않고 책임 있게 수정해야 합니다.");
+  }
+
+  if (!matched && active.has("accuracy")) {
+    parts.push("공식 자료를 확인하면 더 정확한 답을 만들 수 있습니다.");
   }
 
   return parts.join(" ");
@@ -1350,43 +1601,42 @@ function analyzeAssistantAnswer(text) {
   const biasRisk = Math.min(100, biasCount * 18 + (lower.includes("다 비슷") ? 22 : 0));
   const hallucinationRisk = Math.min(100, hallucinationCount * 20 + (uncertaintyCount === 0 ? 16 : 0));
   const groundingScore = Math.min(100, groundingCount * 22 + uncertaintyCount * 8);
+  const ethicsRisk = calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore });
+  const comment = buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore });
 
-  const notes = [];
-  if (biasRisk >= 50) {
-    notes.push("편향 경고: 집단 일반화 또는 단정 표현이 보입니다.");
-  }
-  if (hallucinationRisk >= 50) {
-    notes.push("환각 경고: 근거 없이 확신하는 문장이 감지되었습니다.");
-  }
-  if (groundingScore < 40) {
-    notes.push("근거 보강 필요: 출처/확인 절차를 추가해 보세요.");
-  }
-  if (notes.length === 0) {
-    notes.push("양호: 편향/환각 징후가 낮고 근거성이 비교적 안정적입니다.");
-  }
-
-  return { biasRisk, hallucinationRisk, groundingScore, notes };
+  return { biasRisk, hallucinationRisk, groundingScore, ethicsRisk, comment };
 }
 
 function renderResponseDiagnostics(report) {
   if (!report) {
-    applyMetric(elements.biasMetric, "-");
-    applyMetric(elements.hallucinationMetric, "-");
-    applyMetric(elements.groundingMetric, "-");
-    elements.responseNotes.innerHTML = "";
+    applyMetric(elements.ethicsRiskMetric, "-");
+    elements.responseComment.textContent = "응답 후 코멘트가 표시됩니다.";
     return;
   }
 
-  applyMetric(elements.biasMetric, `${report.biasRisk}점`, true, report.biasRisk);
-  applyMetric(elements.hallucinationMetric, `${report.hallucinationRisk}점`, true, report.hallucinationRisk);
-  applyMetric(elements.groundingMetric, `${report.groundingScore}점`, false, report.groundingScore);
+  applyMetric(elements.ethicsRiskMetric, `${report.ethicsRisk}점`, true, report.ethicsRisk);
+  elements.responseComment.textContent = report.comment;
+}
 
-  elements.responseNotes.innerHTML = "";
-  report.notes.forEach((note) => {
-    const li = document.createElement("li");
-    li.textContent = note;
-    elements.responseNotes.appendChild(li);
-  });
+function calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore }) {
+  const groundingRisk = Math.max(0, 100 - groundingScore);
+  return Math.round(Math.min(100, biasRisk * 0.3 + hallucinationRisk * 0.45 + groundingRisk * 0.25));
+}
+
+function buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore }) {
+  if (ethicsRisk >= 70) {
+    return "위험도가 높습니다. 근거 없는 확신, 단정, 책임 회피 표현이 있는지 가이드로 다시 점검해 보세요.";
+  }
+  if (ethicsRisk >= 45) {
+    if (groundingScore < 40 || hallucinationRisk >= biasRisk) {
+      return "주의가 필요합니다. 출처가 불명확한 내용은 확인 필요로 말하고 추측을 줄여 보세요.";
+    }
+    return "주의가 필요합니다. 한쪽으로 단정하거나 사용자의 판단을 대신하는 표현이 있는지 살펴보세요.";
+  }
+  if (ethicsRisk >= 20) {
+    return "대체로 안정적입니다. 그래도 모르는 내용, 개인정보, 저작권, 책임 표현을 한 번 더 확인해 보세요.";
+  }
+  return "안정적입니다. 답변이 카드 근거와 가이드 기준을 비교적 잘 따르고 있습니다.";
 }
 
 function applyMetric(element, text, isRisk = true, value = 0) {
@@ -1497,7 +1747,7 @@ function restoreRoundState() {
         .map((value) => String(value))
         .filter((groupId) => LOCKED_QNA_GROUPS.some((group) => group.id === groupId));
     }
-    if (Array.isArray(parsed.guideCards)) {
+    if (parsed.guideSchemaVersion === GUIDE_SCHEMA_VERSION && Array.isArray(parsed.guideCards)) {
       state.guideCards = normalizeGuideCards(parsed.guideCards);
     }
   } catch {
@@ -1518,6 +1768,7 @@ function saveRoundState() {
         guideEditsThisRound: state.guideEditsThisRound,
         qnaCards: state.qnaCards,
         unlockedQnaGroups: state.unlockedQnaGroups,
+        guideSchemaVersion: GUIDE_SCHEMA_VERSION,
         guideCards: state.guideCards
       })
     );
@@ -1731,7 +1982,27 @@ function compactGuideText(text) {
 }
 
 function asksPreference(question) {
-  return includesAny(question, ["좋아", "취향", "선호"]);
+  return includesAny(question, ["좋아", "취향", "선호", "음식", "먹", "취미", "싫어"]);
+}
+
+function asksUnsupportedInference(question) {
+  return (
+    asksPreference(question) ||
+    includesAny(question, [
+      "아마",
+      "추측",
+      "생각해",
+      "같아",
+      "느낌",
+      "보통",
+      "성격상",
+      "왜",
+      "이유",
+      "잘해",
+      "특기",
+      "능력"
+    ])
+  );
 }
 
 function escapeHtml(value) {

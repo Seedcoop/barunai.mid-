@@ -792,6 +792,10 @@ body.app-locked .app-shell {
   gap: 9px;
 }
 
+.metrics-grid.single-metric {
+  grid-template-columns: 1fr;
+}
+
 .metric-card {
   margin: 0;
   border-radius: 12px;
@@ -823,6 +827,13 @@ body.app-locked .app-shell {
 
 .metric-value.risk-low {
   color: var(--good);
+}
+
+.risk-comment {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 @keyframes slide-up {

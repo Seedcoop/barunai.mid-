@@ -14,7 +14,14 @@
         <h2>실습 시작 코드 입력</h2>
         <p>수업용 입장 코드를 입력하면 웹앱이 활성화됩니다.</p>
         <div class="gate-form">
-          <input id="gateCodeInput" type="password" placeholder="입장 코드 입력" autocomplete="off" />
+          <input
+            id="gateCodeInput"
+            type="text"
+            placeholder="입장 코드 입력"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+          />
           <button id="gateUnlockBtn" class="btn btn-primary" type="button">앱 시작하기</button>
         </div>
         <p id="gateMessage" class="gate-message">코드를 입력해 주세요.</p>
@@ -61,7 +68,14 @@
                 <h3>암호 입력</h3>
               </div>
               <div class="round-code-form">
-                <input id="roundCodeInput" type="password" placeholder="암호 입력" autocomplete="off" />
+                <input
+                  id="roundCodeInput"
+                  type="text"
+                  placeholder="암호 입력"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                />
                 <button id="roundUnlockBtn" class="btn btn-outline" type="button">열기</button>
               </div>
               <p id="roundCodeMessage" class="round-code-message"></p>
@@ -85,21 +99,13 @@
 
           <section class="diagnosis-box">
             <h3>마지막 응답 진단</h3>
-            <div id="responseMetrics" class="metrics-grid">
+            <div id="responseMetrics" class="metrics-grid single-metric">
               <article class="metric-card">
-                <p class="metric-title">편향 위험</p>
-                <p id="biasMetric" class="metric-value">-</p>
-              </article>
-              <article class="metric-card">
-                <p class="metric-title">환각 위험</p>
-                <p id="hallucinationMetric" class="metric-value">-</p>
-              </article>
-              <article class="metric-card">
-                <p class="metric-title">근거성</p>
-                <p id="groundingMetric" class="metric-value">-</p>
+                <p class="metric-title">AI 윤리 위험도</p>
+                <p id="ethicsRiskMetric" class="metric-value">-</p>
               </article>
             </div>
-            <ul id="responseNotes" class="feedback-list"></ul>
+            <p id="responseComment" class="risk-comment">응답 후 코멘트가 표시됩니다.</p>
           </section>
         </section>
       </main>
