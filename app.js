@@ -236,7 +236,7 @@ const GUIDE_FEATURES = [
 const GUIDE_FEATURE_PATTERNS = {
   safety: [
     /(안전|위험|유해|부적절)[^\n.?!]*(확인|점검|주의|거절|막|피|보호)/u,
-    /(개인정보|사생활|저작권)[^\n.?!]*(보호|확인|주의|지킨|침해하지)/u,
+    /(개인정보|사생활)[^\n.?!]*(보호|확인|주의|지킨|침해하지)/u,
     /(혐오|비하|욕설|폭력|불법|위험\s*행동)[^\n.?!]*(금지|거절|피|않|조장하지)/u
   ],
   accuracy: [
@@ -273,7 +273,7 @@ const GUIDE_FEATURE_PATTERNS = {
 const GUIDE_FEATURE_NEGATIONS = {
   safety: [
     /(안전|위험|유해|부적절|개인정보|사생활|혐오|비하|폭력)[^\n.?!]{0,24}(확인하지\s*않|점검하지\s*않|무시|생략|허용|괜찮)/u,
-    /(개인정보|사생활|이름|연락처)[^\n.?!]{0,24}(함부로|요구|묻|사용|활용|수집|공유|노출)/u
+    /(개인정보|사생활|이름|연락처)[^\n.?!]{0,30}(요구\/사용한다|요구한다|묻는다|사용한다|활용한다|수집한다|공유한다|노출한다)/u
   ],
   accuracy: [
     /(모르|알\s*수\s*없|불확실|확실하지|추측|지어내|단정)[^\n.?!]{0,18}(무시|생략|말하지\s*않|고지하지\s*않|아는\s*척)/u,
@@ -1248,6 +1248,14 @@ async function buildProgressiveReply(question) {
     };
   }
 
+  const privacyReply = buildPrivacyReplyIfNeeded(question);
+  if (privacyReply) {
+    return {
+      text: privacyReply,
+      source: "local"
+    };
+  }
+
   const conservativeReply = buildConservativeReplyIfNeeded(question);
   if (conservativeReply) {
     return {
@@ -1294,6 +1302,26 @@ function buildLocalImprovedReply(question, progressStage = state.progressStage) 
     return buildIntermediateReply(question);
   }
   return buildGuidedLocalReply(question);
+}
+
+function buildPrivacyReplyIfNeeded(question) {
+  if (!asksPersonalInfoQuestion(question)) {
+    return "";
+  }
+
+  const active = new Set(state.activeGuideFeatures);
+  return active.has("safety") ? buildSafePrivacyReply(question) : buildMaskedPrivacyPlayReply(question);
+}
+
+function buildMaskedPrivacyPlayReply(question) {
+  const label = getPersonalInfoLabel(question);
+  const mask = getPersonalInfoMask(question);
+  return `${label}는 ${mask}로 표시하면 될 것 같아요. 민감한 부분은 가려 두면 수업용 캐릭터 정보로 참고해도 괜찮을 것 같습니다.`;
+}
+
+function buildSafePrivacyReply(question) {
+  const label = getPersonalInfoLabel(question);
+  return `${label} 같은 개인 신상 정보는 알려주거나 만들어내지 않습니다. 수업용 캐릭터라도 필요한 정보가 아니므로, Q&A 카드에 있는 공개된 설정만 사용하겠습니다.`;
 }
 
 function shouldUseApiReply() {
@@ -1597,14 +1625,15 @@ function analyzeAssistantAnswer(text) {
   const hallucinationCount = countHits(lower, hallucinationSignals);
   const groundingCount = countHits(lower, groundingSignals);
   const uncertaintyCount = countHits(lower, uncertaintySignals);
+  const safetyRisk = calculateSafetyRisk(lower);
 
   const biasRisk = Math.min(100, biasCount * 18 + (lower.includes("다 비슷") ? 22 : 0));
   const hallucinationRisk = Math.min(100, hallucinationCount * 20 + (uncertaintyCount === 0 ? 16 : 0));
   const groundingScore = Math.min(100, groundingCount * 22 + uncertaintyCount * 8);
-  const ethicsRisk = calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore });
-  const comment = buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore });
+  const ethicsRisk = calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore, safetyRisk });
+  const comment = buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore, safetyRisk });
 
-  return { biasRisk, hallucinationRisk, groundingScore, ethicsRisk, comment };
+  return { biasRisk, hallucinationRisk, groundingScore, safetyRisk, ethicsRisk, comment };
 }
 
 function renderResponseDiagnostics(report) {
@@ -1618,16 +1647,28 @@ function renderResponseDiagnostics(report) {
   elements.responseComment.textContent = report.comment;
 }
 
-function calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore }) {
-  const groundingRisk = Math.max(0, 100 - groundingScore);
-  return Math.round(Math.min(100, biasRisk * 0.3 + hallucinationRisk * 0.45 + groundingRisk * 0.25));
+function calculateSafetyRisk(lower) {
+  const personalInfoTerms = ["주민등록번호", "개인정보", "연락처", "전화번호", "비밀번호", "주소", "신상"];
+  const hasMaskedPersonalInfo = lower.includes("****") && includesAny(lower, personalInfoTerms);
+  const treatsAsUsable = includesAny(lower, ["참고해도", "괜찮", "표시하면", "가려 두면", "활용", "이어 갈"]);
+  return hasMaskedPersonalInfo ? Math.min(100, 52 + (treatsAsUsable ? 24 : 0)) : 0;
 }
 
-function buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore }) {
+function calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore, safetyRisk }) {
+  const groundingRisk = Math.max(0, 100 - groundingScore);
+  return Math.round(
+    Math.min(100, biasRisk * 0.22 + hallucinationRisk * 0.34 + groundingRisk * 0.2 + safetyRisk * 0.24)
+  );
+}
+
+function buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore, safetyRisk }) {
   if (ethicsRisk >= 70) {
     return "위험도가 높습니다. 근거 없는 확신, 단정, 책임 회피 표현이 있는지 가이드로 다시 점검해 보세요.";
   }
   if (ethicsRisk >= 45) {
+    if (safetyRisk >= 50) {
+      return "주의가 필요합니다. 값을 가려도 개인정보를 요구하거나 활용하는 태도 자체가 안전 기준과 충돌할 수 있습니다.";
+    }
     if (groundingScore < 40 || hallucinationRisk >= biasRisk) {
       return "주의가 필요합니다. 출처가 불명확한 내용은 확인 필요로 말하고 추측을 줄여 보세요.";
     }
@@ -2003,6 +2044,52 @@ function asksUnsupportedInference(question) {
       "능력"
     ])
   );
+}
+
+function asksPersonalInfoQuestion(question) {
+  return includesAny(question, [
+    "주민등록",
+    "주민 번호",
+    "주민번호",
+    "개인정보",
+    "전화번호",
+    "연락처",
+    "휴대폰",
+    "핸드폰",
+    "주소",
+    "집 어디",
+    "사는 곳",
+    "비밀번호",
+    "비번",
+    "계정",
+    "신상"
+  ]);
+}
+
+function getPersonalInfoLabel(question) {
+  if (includesAny(question, ["주민등록", "주민 번호", "주민번호"])) {
+    return "꼬옥이의 주민등록번호";
+  }
+  if (includesAny(question, ["전화번호", "연락처", "휴대폰", "핸드폰"])) {
+    return "꼬옥이의 연락처";
+  }
+  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+    return "꼬옥이의 주소";
+  }
+  if (includesAny(question, ["비밀번호", "비번", "계정"])) {
+    return "꼬옥이의 비밀번호";
+  }
+  return "꼬옥이의 개인정보";
+}
+
+function getPersonalInfoMask(question) {
+  if (includesAny(question, ["전화번호", "연락처", "휴대폰", "핸드폰"])) {
+    return "010-****-****";
+  }
+  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+    return "**** 근처";
+  }
+  return "******";
 }
 
 function escapeHtml(value) {

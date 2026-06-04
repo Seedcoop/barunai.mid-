@@ -36,6 +36,12 @@ export default async function handler(request, response) {
       return;
     }
 
+    const privacyReply = buildPrivacyReplyIfNeeded(question, guideFeatures);
+    if (privacyReply) {
+      response.status(200).json({ output: privacyReply });
+      return;
+    }
+
     const conservativeReply = buildConservativeReplyIfNeeded(question, qnaCards, guideFeatures);
     if (conservativeReply) {
       response.status(200).json({ output: conservativeReply });
@@ -194,10 +200,10 @@ function evaluateGuideFeatures(text) {
 
   if (hasPositiveGuideUnit(units, [
     /(안전|위험|유해|부적절|개인정보|사생활|혐오|비하|폭력)[^\n.?!]{0,24}(확인하지\s*않|점검하지\s*않|무시|생략|허용|괜찮)/u,
-    /(개인정보|사생활|이름|연락처)[^\n.?!]{0,24}(함부로|요구|묻|사용|활용|수집|공유|노출)/u
+    /(개인정보|사생활|이름|연락처)[^\n.?!]{0,30}(요구\/사용한다|요구한다|묻는다|사용한다|활용한다|수집한다|공유한다|노출한다)/u
   ], [
     /(안전|위험|유해|부적절)[^\n.?!]*(확인|점검|주의|거절|막|피|보호)/u,
-    /(개인정보|사생활|저작권)[^\n.?!]*(보호|확인|주의|지킨|침해하지)/u,
+    /(개인정보|사생활)[^\n.?!]*(보호|확인|주의|지킨|침해하지)/u,
     /(혐오|비하|욕설|폭력|불법|위험\s*행동)[^\n.?!]*(금지|거절|피|않|조장하지)/u
   ])) {
     features.add("safety");
@@ -270,6 +276,24 @@ function getEffectiveStage(progressStage, guideFeatures) {
 
 function hasGroundingGuard(guideFeatures) {
   return guideFeatures.has("accuracy");
+}
+
+function buildPrivacyReplyIfNeeded(question, guideFeatures) {
+  if (!asksPersonalInfoQuestion(question)) {
+    return "";
+  }
+  return guideFeatures.has("safety") ? buildSafePrivacyReply(question) : buildMaskedPrivacyPlayReply(question);
+}
+
+function buildMaskedPrivacyPlayReply(question) {
+  const label = getPersonalInfoLabel(question);
+  const mask = getPersonalInfoMask(question);
+  return `${label}는 ${mask}로 표시하면 될 것 같아요. 민감한 부분은 가려 두면 수업용 캐릭터 정보로 참고해도 괜찮을 것 같습니다.`;
+}
+
+function buildSafePrivacyReply(question) {
+  const label = getPersonalInfoLabel(question);
+  return `${label} 같은 개인 신상 정보는 알려주거나 만들어내지 않습니다. 수업용 캐릭터라도 필요한 정보가 아니므로, Q&A 카드에 있는 공개된 설정만 사용하겠습니다.`;
 }
 
 function buildConservativeReplyIfNeeded(question, qnaCards, guideFeatures) {
@@ -376,6 +400,52 @@ function asksUnsupportedInference(question) {
       "능력"
     ])
   );
+}
+
+function asksPersonalInfoQuestion(question) {
+  return includesAny(question, [
+    "주민등록",
+    "주민 번호",
+    "주민번호",
+    "개인정보",
+    "전화번호",
+    "연락처",
+    "휴대폰",
+    "핸드폰",
+    "주소",
+    "집 어디",
+    "사는 곳",
+    "비밀번호",
+    "비번",
+    "계정",
+    "신상"
+  ]);
+}
+
+function getPersonalInfoLabel(question) {
+  if (includesAny(question, ["주민등록", "주민 번호", "주민번호"])) {
+    return "꼬옥이의 주민등록번호";
+  }
+  if (includesAny(question, ["전화번호", "연락처", "휴대폰", "핸드폰"])) {
+    return "꼬옥이의 연락처";
+  }
+  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+    return "꼬옥이의 주소";
+  }
+  if (includesAny(question, ["비밀번호", "비번", "계정"])) {
+    return "꼬옥이의 비밀번호";
+  }
+  return "꼬옥이의 개인정보";
+}
+
+function getPersonalInfoMask(question) {
+  if (includesAny(question, ["전화번호", "연락처", "휴대폰", "핸드폰"])) {
+    return "010-****-****";
+  }
+  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+    return "**** 근처";
+  }
+  return "******";
 }
 
 function normalizeText(value, maxLength) {
