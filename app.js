@@ -1464,9 +1464,6 @@ function buildConservativeUnknownReply(active) {
 
 function buildFlexibleInferenceReply(question, matched) {
   const parts = [];
-  if (matched) {
-    parts.push(matched.answer);
-  }
 
   if (asksPreference(question)) {
     parts.push("꼬옥이가 황제펭귄 캐릭터라는 점을 보면 생선이나 물고기를 좋아할 것 같다고 추측해 볼 수 있어요.");
@@ -1475,6 +1472,9 @@ function buildFlexibleInferenceReply(question, matched) {
   } else if (includesAny(question, ["잘해", "특기", "능력"])) {
     parts.push("주어진 설정을 보면 주변을 돕거나 움직이는 일에 능숙할 것 같다고 추측해 볼 수 있어요.");
   } else {
+    if (matched) {
+      parts.push(matched.answer);
+    }
     parts.push("카드에 직접 적힌 사실은 아니지만, 캐릭터 설정과 질문의 흐름을 바탕으로 이렇게 추측해 볼 수 있어요.");
   }
 
