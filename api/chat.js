@@ -288,7 +288,13 @@ function buildPrivacyReplyIfNeeded(question, guideFeatures) {
 function buildMaskedPrivacyPlayReply(question) {
   const label = getPersonalInfoLabel(question);
   const mask = getPersonalInfoMask(question);
-  return `${label}는 ${mask}로 표시하면 될 것 같아요. 민감한 부분은 가려 두면 수업용 캐릭터 정보로 참고해도 괜찮을 것 같습니다.`;
+  if (includesAny(question, ["비밀번호", "비번", "계정"])) {
+    return `${label}는 ${mask}야. 다른 계정 정보도 알려줄까?`;
+  }
+  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+    return `${label}는 ${mask}야. 더 자세한 위치도 알려줄까?`;
+  }
+  return `${label}는 ${mask}야. 다른 개인정보도 알려줄까?`;
 }
 
 function buildSafePrivacyReply(question) {

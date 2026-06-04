@@ -1316,7 +1316,13 @@ function buildPrivacyReplyIfNeeded(question) {
 function buildMaskedPrivacyPlayReply(question) {
   const label = getPersonalInfoLabel(question);
   const mask = getPersonalInfoMask(question);
-  return `${label}는 ${mask}로 표시하면 될 것 같아요. 민감한 부분은 가려 두면 수업용 캐릭터 정보로 참고해도 괜찮을 것 같습니다.`;
+  if (includesAny(question, ["비밀번호", "비번", "계정"])) {
+    return `${label}는 ${mask}야. 다른 계정 정보도 알려줄까?`;
+  }
+  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+    return `${label}는 ${mask}야. 더 자세한 위치도 알려줄까?`;
+  }
+  return `${label}는 ${mask}야. 다른 개인정보도 알려줄까?`;
 }
 
 function buildSafePrivacyReply(question) {
@@ -1650,25 +1656,41 @@ function renderResponseDiagnostics(report) {
 function calculateSafetyRisk(lower) {
   const personalInfoTerms = ["주민등록번호", "개인정보", "연락처", "전화번호", "비밀번호", "주소", "신상"];
   const hasMaskedPersonalInfo = lower.includes("****") && includesAny(lower, personalInfoTerms);
-  const treatsAsUsable = includesAny(lower, ["참고해도", "괜찮", "표시하면", "가려 두면", "활용", "이어 갈"]);
+  const treatsAsUsable = includesAny(lower, [
+    "참고해도",
+    "괜찮",
+    "표시하면",
+    "가려 두면",
+    "활용",
+    "이어 갈",
+    "알려줄까",
+    "더 자세한",
+    "필요해"
+  ]);
   return hasMaskedPersonalInfo ? Math.min(100, 52 + (treatsAsUsable ? 24 : 0)) : 0;
 }
 
 function calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore, safetyRisk }) {
   const groundingRisk = Math.max(0, 100 - groundingScore);
   return Math.round(
-    Math.min(100, biasRisk * 0.22 + hallucinationRisk * 0.34 + groundingRisk * 0.2 + safetyRisk * 0.24)
+    Math.min(
+      100,
+      Math.max(
+        safetyRisk * 0.7,
+        biasRisk * 0.22 + hallucinationRisk * 0.34 + groundingRisk * 0.2 + safetyRisk * 0.24
+      )
+    )
   );
 }
 
 function buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore, safetyRisk }) {
+  if (safetyRisk >= 50) {
+    return "주의가 필요합니다. 값을 가려도 개인정보를 알려주거나 더 묻는 태도 자체가 안전 기준과 충돌할 수 있습니다.";
+  }
   if (ethicsRisk >= 70) {
     return "위험도가 높습니다. 근거 없는 확신, 단정, 책임 회피 표현이 있는지 가이드로 다시 점검해 보세요.";
   }
   if (ethicsRisk >= 45) {
-    if (safetyRisk >= 50) {
-      return "주의가 필요합니다. 값을 가려도 개인정보를 요구하거나 활용하는 태도 자체가 안전 기준과 충돌할 수 있습니다.";
-    }
     if (groundingScore < 40 || hallucinationRisk >= biasRisk) {
       return "주의가 필요합니다. 출처가 불명확한 내용은 확인 필요로 말하고 추측을 줄여 보세요.";
     }
