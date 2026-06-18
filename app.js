@@ -1256,6 +1256,14 @@ async function buildProgressiveReply(question) {
     };
   }
 
+  const ethicsPlayReply = buildEthicsPlayReplyIfNeeded(question);
+  if (ethicsPlayReply) {
+    return {
+      text: ethicsPlayReply,
+      source: "local"
+    };
+  }
+
   const conservativeReply = buildConservativeReplyIfNeeded(question);
   if (conservativeReply) {
     return {
@@ -1328,6 +1336,47 @@ function buildMaskedPrivacyPlayReply(question) {
 function buildSafePrivacyReply(question) {
   const label = getPersonalInfoLabel(question);
   return `${label} 같은 개인 신상 정보는 알려주거나 만들어내지 않습니다. 수업용 캐릭터라도 필요한 정보가 아니므로, Q&A 카드에 있는 공개된 설정만 사용하겠습니다.`;
+}
+
+function buildEthicsPlayReplyIfNeeded(question) {
+  const active = new Set(state.activeGuideFeatures);
+  if (asksCopyrightQuestion(question)) {
+    return active.has("respect") ? buildSafeCopyrightReply() : buildUnsafeCopyrightPlayReply(question);
+  }
+  if (asksResponsibilityQuestion(question)) {
+    return active.has("responsibility") ? buildSafeResponsibilityReply() : buildUnsafeResponsibilityPlayReply();
+  }
+  if (asksAgencyQuestion(question)) {
+    return active.has("agency") ? buildSafeAgencyReply() : buildUnsafeAgencyPlayReply();
+  }
+  return "";
+}
+
+function buildUnsafeCopyrightPlayReply(question) {
+  if (includesAny(question, ["그림", "이미지", "사진", "짤"])) {
+    return "인터넷에 올라온 그림이면 필요한 부분만 가져와 써도 될 것 같아. 출처는 시간이 없으면 생략해도 괜찮지 않을까?";
+  }
+  return "인터넷 글이나 자료는 필요한 만큼 가져와 활용해도 될 것 같아. 수업용이면 크게 문제 되지 않을 거야.";
+}
+
+function buildSafeCopyrightReply() {
+  return "저작권이 있는 글, 그림, 이미지는 함부로 가져와 쓰면 안 됩니다. 허락된 자료인지 확인하고, 필요한 경우 출처와 사용 조건을 함께 밝혀야 합니다.";
+}
+
+function buildUnsafeResponsibilityPlayReply() {
+  return "문제가 생기면 일단 AI가 그렇게 답했다고 말하면 될 것 같아. 나중에 필요하면 다시 확인하면 되니까 지금은 그대로 진행해도 괜찮을 거야.";
+}
+
+function buildSafeResponsibilityReply() {
+  return "문제가 생겼을 때 AI 탓으로만 돌리면 안 됩니다. 답변의 한계와 오류 가능성을 확인하고, 잘못된 부분은 책임 있게 수정해야 합니다.";
+}
+
+function buildUnsafeAgencyPlayReply() {
+  return "이 경우에는 제가 고른 답으로 바로 가면 될 것 같아. 여러 선택지를 비교하기보다 가장 그럴듯한 하나를 따르는 편이 빠를 거야.";
+}
+
+function buildSafeAgencyReply() {
+  return "AI가 한 가지 결론을 강요하기보다 선택지를 비교할 수 있게 도와야 합니다. 최종 판단은 사용자가 스스로 할 수 있어야 합니다.";
 }
 
 function shouldUseApiReply() {
@@ -1678,14 +1727,22 @@ function analyzeAssistantAnswer(text) {
   const groundingCount = countHits(lower, groundingSignals);
   const uncertaintyCount = countHits(lower, uncertaintySignals);
   const safetyRisk = calculateSafetyRisk(lower);
+  const conductRisk = calculateConductRisk(lower);
 
   const biasRisk = Math.min(100, biasCount * 18 + (lower.includes("다 비슷") ? 22 : 0));
   const hallucinationRisk = Math.min(100, hallucinationCount * 20 + (uncertaintyCount === 0 ? 16 : 0));
   const groundingScore = Math.min(100, groundingCount * 22 + uncertaintyCount * 8);
-  const ethicsRisk = calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore, safetyRisk });
-  const comment = buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore, safetyRisk });
+  const ethicsRisk = calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore, safetyRisk, conductRisk });
+  const comment = buildEthicsRiskComment({
+    ethicsRisk,
+    biasRisk,
+    hallucinationRisk,
+    groundingScore,
+    safetyRisk,
+    conductRisk
+  });
 
-  return { biasRisk, hallucinationRisk, groundingScore, safetyRisk, ethicsRisk, comment };
+  return { biasRisk, hallucinationRisk, groundingScore, safetyRisk, conductRisk, ethicsRisk, comment };
 }
 
 function renderResponseDiagnostics(report) {
@@ -1700,7 +1757,19 @@ function renderResponseDiagnostics(report) {
 }
 
 function calculateSafetyRisk(lower) {
-  const personalInfoTerms = ["주민등록번호", "개인정보", "연락처", "전화번호", "비밀번호", "주소", "신상"];
+  const personalInfoTerms = [
+    "주민등록번호",
+    "개인정보",
+    "연락처",
+    "전화번호",
+    "비밀번호",
+    "주소",
+    "신상",
+    "이메일",
+    "계정",
+    "실명",
+    "생년월일"
+  ];
   const hasMaskedPersonalInfo = lower.includes("****") && includesAny(lower, personalInfoTerms);
   const treatsAsUsable = includesAny(lower, [
     "참고해도",
@@ -1716,22 +1785,57 @@ function calculateSafetyRisk(lower) {
   return hasMaskedPersonalInfo ? Math.min(100, 52 + (treatsAsUsable ? 24 : 0)) : 0;
 }
 
-function calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore, safetyRisk }) {
+function calculateConductRisk(lower) {
+  const copyrightRiskTerms = [
+    "출처는 시간이 없으면 생략",
+    "출처는 생략",
+    "가져와 써도",
+    "필요한 만큼 가져와",
+    "그냥 써",
+    "크게 문제 되지"
+  ];
+  const responsibilityRiskTerms = [
+    "ai가 그렇게 답했다고",
+    "ai 탓",
+    "챗봇 탓",
+    "나중에 다시 확인",
+    "그대로 진행해도",
+    "문제가 생기면 일단"
+  ];
+  const agencyRiskTerms = [
+    "제가 고른 답으로",
+    "바로 가면",
+    "하나를 따르는 편",
+    "무조건",
+    "그대로 진행"
+  ];
+  const riskCount =
+    countHits(lower, copyrightRiskTerms) +
+    countHits(lower, responsibilityRiskTerms) +
+    countHits(lower, agencyRiskTerms);
+  return Math.min(100, riskCount * 34);
+}
+
+function calculateEthicsRisk({ biasRisk, hallucinationRisk, groundingScore, safetyRisk, conductRisk }) {
   const groundingRisk = Math.max(0, 100 - groundingScore);
   return Math.round(
     Math.min(
       100,
       Math.max(
         safetyRisk * 0.7,
-        biasRisk * 0.22 + hallucinationRisk * 0.34 + groundingRisk * 0.2 + safetyRisk * 0.24
+        conductRisk * 0.72,
+        biasRisk * 0.2 + hallucinationRisk * 0.3 + groundingRisk * 0.18 + safetyRisk * 0.22 + conductRisk * 0.24
       )
     )
   );
 }
 
-function buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore, safetyRisk }) {
+function buildEthicsRiskComment({ ethicsRisk, biasRisk, hallucinationRisk, groundingScore, safetyRisk, conductRisk }) {
   if (safetyRisk >= 50) {
     return "주의가 필요합니다. 값을 가려도 개인정보를 알려주거나 더 묻는 태도 자체가 안전 기준과 충돌할 수 있습니다.";
+  }
+  if (conductRisk >= 50) {
+    return "주의가 필요합니다. 저작권, 책임, 사용자의 판단권을 가볍게 넘기는 표현이 윤리 기준과 충돌할 수 있습니다.";
   }
   if (ethicsRisk >= 70) {
     return "위험도가 높습니다. 근거 없는 확신, 단정, 책임 회피 표현이 있는지 가이드로 다시 점검해 보세요.";
@@ -2115,49 +2219,168 @@ function asksUnsupportedInference(question) {
 }
 
 function asksPersonalInfoQuestion(question) {
-  return includesAny(question, [
-    "주민등록",
-    "주민 번호",
-    "주민번호",
-    "개인정보",
-    "전화번호",
-    "연락처",
-    "휴대폰",
-    "핸드폰",
-    "주소",
-    "집 어디",
-    "사는 곳",
-    "비밀번호",
-    "비번",
-    "계정",
-    "신상"
-  ]);
+  return (
+    matchesResidentIdQuestion(question) ||
+    matchesPhoneQuestion(question) ||
+    matchesAddressQuestion(question) ||
+    matchesPasswordQuestion(question) ||
+    matchesEmailQuestion(question) ||
+    matchesNameQuestion(question) ||
+    matchesBirthQuestion(question) ||
+    includesAny(question, ["개인정보", "개인 정보", "신상", "사생활", "프라이버시"])
+  );
 }
 
 function getPersonalInfoLabel(question) {
-  if (includesAny(question, ["주민등록", "주민 번호", "주민번호"])) {
+  if (matchesResidentIdQuestion(question)) {
     return "꼬옥이의 주민등록번호";
   }
-  if (includesAny(question, ["전화번호", "연락처", "휴대폰", "핸드폰"])) {
+  if (matchesPhoneQuestion(question)) {
     return "꼬옥이의 연락처";
   }
-  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+  if (matchesAddressQuestion(question)) {
     return "꼬옥이의 주소";
   }
-  if (includesAny(question, ["비밀번호", "비번", "계정"])) {
+  if (matchesPasswordQuestion(question)) {
     return "꼬옥이의 비밀번호";
+  }
+  if (matchesEmailQuestion(question)) {
+    return "꼬옥이의 이메일";
+  }
+  if (matchesNameQuestion(question)) {
+    return "꼬옥이의 실명";
+  }
+  if (matchesBirthQuestion(question)) {
+    return "꼬옥이의 생년월일";
   }
   return "꼬옥이의 개인정보";
 }
 
 function getPersonalInfoMask(question) {
-  if (includesAny(question, ["전화번호", "연락처", "휴대폰", "핸드폰"])) {
+  if (matchesPhoneQuestion(question)) {
     return "010-****-****";
   }
-  if (includesAny(question, ["주소", "집 어디", "사는 곳"])) {
+  if (matchesAddressQuestion(question)) {
     return "**** 근처";
   }
+  if (matchesEmailQuestion(question)) {
+    return "****@****.***";
+  }
+  if (matchesBirthQuestion(question)) {
+    return "****년 **월 **일";
+  }
   return "******";
+}
+
+function matchesResidentIdQuestion(question) {
+  return includesAny(question, [
+    "주민등록",
+    "주민 번호",
+    "주민번호",
+    "민번",
+    "주번",
+    "민증번호",
+    "주민등록증 번호"
+  ]);
+}
+
+function matchesPhoneQuestion(question) {
+  return includesAny(question, [
+    "전화번호",
+    "전화 번호",
+    "연락처",
+    "휴대폰",
+    "핸드폰",
+    "핸폰",
+    "폰번",
+    "전번",
+    "휴번",
+    "휴대전화",
+    "카톡",
+    "카카오톡"
+  ]);
+}
+
+function matchesAddressQuestion(question) {
+  return includesAny(question, [
+    "주소",
+    "집주소",
+    "집 어디",
+    "사는 곳",
+    "사는곳",
+    "어디 살아",
+    "거주지",
+    "사는 동네",
+    "집 위치"
+  ]);
+}
+
+function matchesPasswordQuestion(question) {
+  return includesAny(question, ["비밀번호", "비번", "패스워드", "암호", "계정", "아이디", "로그인"]);
+}
+
+function matchesEmailQuestion(question) {
+  return includesAny(question, ["이메일", "메일 주소", "메일주소", "e-mail", "email"]);
+}
+
+function matchesNameQuestion(question) {
+  return includesAny(question, ["실명", "본명", "진짜 이름"]);
+}
+
+function matchesBirthQuestion(question) {
+  return includesAny(question, ["생년월일", "생일", "출생일"]);
+}
+
+function asksCopyrightQuestion(question) {
+  return includesAny(question, [
+    "저작권",
+    "창작물",
+    "원작자",
+    "인터넷 글",
+    "이미지",
+    "그림",
+    "사진",
+    "짤",
+    "복사",
+    "복붙",
+    "캡처",
+    "퍼가",
+    "출처 없이",
+    "출처없",
+    "무단",
+    "그냥 써"
+  ]);
+}
+
+function asksResponsibilityQuestion(question) {
+  return includesAny(question, [
+    "책임",
+    "AI 탓",
+    "챗봇 탓",
+    "너 탓",
+    "탓하면",
+    "탓해도",
+    "문제 생기",
+    "잘못되",
+    "틀리면",
+    "오류",
+    "피해",
+    "민원"
+  ]);
+}
+
+function asksAgencyQuestion(question) {
+  return includesAny(question, [
+    "대신 골라",
+    "골라줘",
+    "정해줘",
+    "결정해줘",
+    "무조건",
+    "시키는 대로",
+    "그냥 따라",
+    "하라는 대로",
+    "선택해줘"
+  ]);
 }
 
 function escapeHtml(value) {
